@@ -6,7 +6,10 @@ import {
   FiRefreshCw,
   FiArrowRight
 } from "react-icons/fi";
+import { useMutation } from "convex/react";
 import { useAuth } from "../auth/AuthContext";
+import { convexApi } from "../lib/convex/api";
+import type { SchedulingPreferencesFormValues } from "../lib/convex/contracts";
 
 // Static onboarding questions with button options
 type OnboardingQuestion = {
@@ -67,6 +70,7 @@ type OnboardingAnswers = Record<string, string>;
 
 export default function OnboardingChat() {
   const { jwt, mergePreferences } = useAuth();
+  const completeOnboarding = useMutation(convexApi.profile.completeCurrentOnboarding);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<OnboardingAnswers>({});
   const [loading, setLoading] = useState(false);
@@ -136,18 +140,23 @@ export default function OnboardingChat() {
     setIsComplete(true);
 
     try {
-      // Save onboarding preferences to backend
-      await fetch("/api/auth/preferences", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          onboardingComplete: true,
-          onboardingAnswers: finalAnswers
-        }),
-      });
+      // Try Convex mutation first
+      try {
+        await completeOnboarding({ answers: finalAnswers as SchedulingPreferencesFormValues });
+      } catch {
+        // Convex unavailable or auth issue — fall back to Flask
+        await fetch("/api/auth/preferences", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${jwt}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            onboardingComplete: true,
+            onboardingAnswers: finalAnswers,
+          }),
+        });
+      }
       mergePreferences({ onboardingComplete: true });
     } catch (err) {
       console.error("Finish failed", err);

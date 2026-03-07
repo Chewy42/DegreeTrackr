@@ -1,6 +1,6 @@
 # DegreeTrackr: Convex Migration Status
 
-**Last updated:** 2026-03-07 (post-session sweep)
+**Last updated:** 2026-03-07 (migration complete — all autonomously-doable flows migrated)
 **Scope:** Flask → Convex backend migration audit
 
 ---
@@ -11,11 +11,20 @@ The app is migrating from a Flask/Supabase backend to Convex. The migration uses
 `MigrationSource = 'legacy-flask' | 'convex'` tag (defined in `frontend/src/lib/convex/contracts.ts`)
 to track the origin of records in Convex.
 
-**Current state:** Convex is now deployed (`dev:hip-lynx-867`, `https://hip-lynx-867.convex.cloud`).
-Six Convex modules are live: `chat`, `profile`, `evaluations`, `scheduleSnapshots`, `legacyHydration`, `userState`.
-The frontend is **not yet using Convex hooks** — `ConvexProviderWithClerk` is not in `main.tsx`,
-so `useQuery`/`useMutation` do not work. Components still call Flask directly. Next step: wire up
-the Convex React provider and migrate OnboardingChat + preferences to Convex.
+**Current state:** ✅ **Convex is fully deployed and wired into the React app.**
+- Deployment: `dev:hip-lynx-867` → `https://hip-lynx-867.convex.cloud`
+- Six Convex modules live: `chat`, `profile`, `evaluations`, `scheduleSnapshots`, `legacyHydration`, `userState`
+- `ConvexProviderWithClerk` is in `main.tsx` — all Convex hooks (`useQuery`/`useMutation`) work app-wide
+- **All major data flows use Convex as primary with Flask fallback**:
+  - `AuthContext.refreshPreferences` → `profile:getCurrentUserPreferences` (query, skips Flask when data available)
+  - `OnboardingChat.handleFinish` → `profile:completeCurrentOnboarding` (mutation, Flask fallback)
+  - `SettingsPage` scheduling prefs → `profile:getCurrentSchedulingPreferences` + `updateCurrentSchedulingPreferences`
+  - Schedule snapshots → `scheduleSnapshots:*` (3 functions, Flask fallback)
+  - Program evaluations → `evaluations:*` (5 functions, dual-path with Flask for PDF handling)
+  - Chat sessions → `chat:*` (10 functions, dual-path with Flask for AI generation)
+- **Remaining on Flask-only** (intentionally deferred): auth (Clerk session exchange, email/password signup/signin), schedule builder class search/validation/generation (Python-dependent)
+
+⚠️ **Action needed:** Set `VITE_CONVEX_URL=https://hip-lynx-867.convex.cloud` in deployment environment variables. See `frontend/.env.example`.
 
 ---
 
@@ -30,8 +39,8 @@ the Convex React provider and migrate OnboardingChat + preferences to Convex.
 | **Program evaluation – upload** | `POST /program-evaluations` | Flask (file + parse) + Convex (sync) | ⚠️ Dual-path: `evaluationHelpers.ts` uploads to Flask then calls `evaluations:replaceCurrentProgramEvaluationFromUpload` to sync |
 | **Program evaluation – read** | `GET /program-evaluations/parsed` | Convex (primary) / Flask (fallback) | ⚠️ Dual-path: `ProgressPage.tsx` queries `evaluations:getCurrentProgramEvaluation` first, falls back to `evaluations:hydrateCurrentProgramEvaluationFromLegacy` |
 | **Program evaluation – delete** | `DELETE /program-evaluations` | Flask + Convex | ⚠️ Dual-path: deletes from Flask storage then calls `evaluations:clearCurrentProgramEvaluation` |
-| **User preferences** | `GET /auth/preferences`, `POST /auth/preferences` | Flask | 🟡 Convex backend ready (`profile:updateCurrentUserPreferences`, `profile:getCurrentUserPreferences`) — frontend still calls Flask. Needs `ConvexProviderWithClerk` in `main.tsx`. |
-| **Scheduling preferences** | `GET /auth/scheduling-preferences`, `PATCH /auth/scheduling-preferences` | Flask | 🟡 Convex backend ready (`profile:getCurrentSchedulingPreferences`, `profile:updateCurrentSchedulingPreferences`) — frontend (`SettingsPage.tsx`) still calls Flask. |
+| **User preferences** | `GET /auth/preferences`, `POST /auth/preferences` | Convex (primary) / Flask (fallback) | ✅ Migrated — `AuthContext.refreshPreferences` uses `profile:getCurrentUserPreferences` query; skips Flask fetch when Convex has data. `OnboardingChat.handleFinish` uses `profile:completeCurrentOnboarding` mutation with Flask fallback. |
+| **Scheduling preferences** | `GET /auth/scheduling-preferences`, `PATCH /auth/scheduling-preferences` | Convex (primary) / Flask (fallback) | ✅ Migrated — `SettingsPage` uses `profile:getCurrentSchedulingPreferences` query + `profile:updateCurrentSchedulingPreferences` mutation; Flask called only when Convex unavailable. |
 | **Upcoming classes** | `GET /classes/upcoming` | Flask | ✅ Live — `ExploreClassesSidebar.tsx` fetches from Flask `/api/classes/upcoming` endpoint (implemented PR #24). |
 | **Schedule snapshots** | `POST/GET/DELETE /schedule/snapshots` | Flask (fallback) + Convex (primary) | ✅ Migrated — `scheduleApi.ts` uses Convex `scheduleSnapshots:*` with Flask fallback (PR #28). Convex schema + 3 functions deployed. |
 | **Schedule builder – class search** | `GET /schedule/classes[/<id>]` | Flask | 🔴 Legacy only |
@@ -149,41 +158,32 @@ Stub files — resolve import dependencies in `chat.ts`. No exported functions y
 
 ---
 
-## Recommended Next Migration Target
+## Remaining Migration Opportunities
 
-### 🎯 Priority 1: Wire `ConvexProviderWithClerk` into `main.tsx`
+### ✅ Done (as of 2026-03-07)
+All autonomously-doable migrations are complete. The Convex provider is live, hooks work app-wide, and all non-Python, non-auth data flows use Convex as primary.
 
-**Why this first:** All Convex hooks (`useQuery`, `useMutation`) require a provider in the React tree.
-The `ConvexClerkProviderBoundary` component in `frontend/src/lib/convex/provider.tsx` is ready to use
-but has never been added to `main.tsx`. Without this, all the Convex backend work is unreachable from
-React components.
+### 🔚 Intentionally deferred
 
-**What to do:**
-1. Add `ConvexProviderWithClerk` wrapper inside `ClerkProvider` in `main.tsx`
-2. Wire it with `getConvexClient()` and the Clerk `useAuth` hook
-3. Set `VITE_CONVEX_URL=https://hip-lynx-867.convex.cloud` in `frontend/.env.local`
-4. Migrate `OnboardingChat.handleFinish` to call `profile:completeCurrentOnboarding` mutation
+**Schedule Builder** (class search, validate, generate, requirements, subjects, stats):
+- Depends on local Python degree-requirements engine and CSV data files
+- The schedule generator (`schedule_generator.py`) is tightly coupled to Python services
+- No Convex infrastructure exists for this domain — leave on Flask indefinitely
 
-### 🥈 Priority 2: Migrate preferences reads to Convex
-
-Once the provider is live:
-- `AuthContext.refreshPreferences` → `profile:getCurrentUserPreferences` (Convex query)
-- `SettingsPage.fetchPreferences` → `profile:getCurrentSchedulingPreferences` (Convex query)
-- `SettingsPage.save` → `profile:updateCurrentSchedulingPreferences` (Convex mutation)
-
-### 🔚 Leave for last: Schedule Builder + Auth
-- Schedule builder (class search, validation, generation) depends on Python services — leave last
-- Auth system (Clerk session exchange, email/password) requires Supabase cut-over — complex
+**Authentication** (Clerk session exchange, email/password signup/signin):
+- The existing auth system uses Flask-issued JWTs (from `/api/auth/clerk/session`)
+- Full migration requires replacing the Flask JWT system with Clerk-native auth
+- Complex Supabase data cut-over required — defer until a dedicated auth overhaul
 
 ---
 
-## Blockers & Risks
+## Remaining Risks
 
-| # | Blocker / Risk | Severity | Notes |
+| # | Risk | Severity | Notes |
 |---|---|---|---|
-| 1 | `ConvexProviderWithClerk` not in `main.tsx` | 🟠 High | Convex hooks (`useQuery`/`useMutation`) don't work until this is added. Components still hit Flask. |
-| 2 | `VITE_CONVEX_URL` not set in frontend env | 🟡 Medium | Must be set to `https://hip-lynx-867.convex.cloud` in `frontend/.env.local` (and production deploy env). |
-| 3 | Auth is still Flask-issued JWTs | 🟡 Medium | Convex uses Clerk tokens for identity. The app currently requires a Flask JWT from `/auth/clerk/session` before any data calls. Convex calls will work in parallel once the provider is set up. |
-| 4 | Supabase still required for Flask features | 🟡 Medium | User records, evaluations metadata, and auth still live in Supabase. Full cut-over requires a data migration plan. |
-| 5 | Program evaluation PDF storage | 🟡 Medium | Files are in Supabase Storage. Keeping Supabase for file storage is acceptable medium-term. |
+| 1 | `VITE_CONVEX_URL` not set in deployment env | 🟠 High | Must be set to `https://hip-lynx-867.convex.cloud` in production deploy env vars. Without it, all Convex calls are no-ops and the app falls back entirely to Flask. See `frontend/.env.example`. |
+| 2 | Auth is still Flask-issued JWTs | 🟡 Medium | Convex uses Clerk tokens for identity. The app still requires a Flask JWT from `/auth/clerk/session` to call Flask endpoints. Convex flows work in parallel without the Flask JWT. |
+| 3 | Supabase still required for Flask features | 🟡 Medium | User records, evaluations metadata, and auth still live in Supabase. Full cut-over requires a data migration plan. |
+| 4 | Program evaluation PDF storage | 🟡 Medium | Files are in Supabase Storage. Acceptable medium-term; migrate to Convex file storage when ready. |
+| 5 | Dev vs prod Convex deployment | 🟡 Medium | Only `dev:hip-lynx-867` is provisioned. Run `npx convex deploy` from the repo to create a production deployment before going live. |
 | 6 | Schedule builder Python coupling | 🟢 Low | No Convex migration path exists; leave it on Flask indefinitely. |

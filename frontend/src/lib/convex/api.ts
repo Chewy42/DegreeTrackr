@@ -1,6 +1,6 @@
 import { makeFunctionReference } from 'convex/server'
 
-import type { UserPreferences } from '../../auth/authModel'
+import type { UserPreferences } from '../../auth/AuthContext'
 import type {
   ChatScope,
   OnboardingCompletionResult,

@@ -1,4 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useAuth as useClerkAuth, useClerk } from '@clerk/react'
+import { buildClerkRedirectUrls, extractClerkErrorMessage } from './clerkAuth'
 
 export type AuthMode = 'sign_in' | 'sign_up'
 
@@ -29,6 +31,7 @@ export type AuthContextValue = {
   setMode: (mode: AuthMode) => void
   setField: (field: keyof AuthState, value: string) => void
   handleSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<void>
+  handleGoogleAuth: () => Promise<void>
   refreshPreferences: () => Promise<void>
   resendConfirmation: () => Promise<void>
   signOut: () => void
@@ -43,6 +46,11 @@ const LOCAL_PREF_KEY = 'edutrackr.preferences'
 
 type Props = {
   children: React.ReactNode
+}
+
+type SessionExchangeResponse = {
+  token: string
+  preferences?: UserPreferences
 }
 
 function isValidJwtFormat(token: string): boolean {
@@ -89,6 +97,31 @@ function safeParseJson<T>(json: string | null, fallback: T): T {
   }
 }
 
+async function exchangeClerkSession(clerkToken: string): Promise<SessionExchangeResponse> {
+  const response = await fetch('/api/auth/clerk/session', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${clerkToken}`,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ stayLoggedIn: true }),
+  })
+
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    const message = typeof data?.error === 'string' ? data.error : 'Unable to sync your Clerk session.'
+    throw new Error(message)
+  }
+
+  if (typeof data?.token !== 'string' || !isValidJwtFormat(data.token)) {
+    throw new Error('Received an invalid application session token.')
+  }
+
+  return data as SessionExchangeResponse
+}
+
 async function checkBackendHealth(): Promise<boolean> {
   try {
     const controller = new AbortController()
@@ -120,6 +153,8 @@ function delay(ms: number): Promise<void> {
 }
 
 export function AuthProvider({ children }: Props) {
+  const { isLoaded: clerkLoaded, isSignedIn, getToken } = useClerkAuth()
+  const clerk = useClerk()
   const [sessionState, setSessionState] = useState<SessionState>('checking')
   const [mode, setMode] = useState<AuthMode>('sign_in')
   const [auth, setAuth] = useState<AuthState>({ email: '', password: '', confirmPassword: '' })
@@ -156,8 +191,7 @@ export function AuthProvider({ children }: Props) {
     }
   }, [])
 
-  const signOut = useCallback(() => {
-    setSessionState('unauthenticated')
+  const clearLocalSession = useCallback(() => {
     persistJwt(null)
     setAuth({ email: '', password: '', confirmPassword: '' })
     setPreferences({})
@@ -171,72 +205,69 @@ export function AuthProvider({ children }: Props) {
     }
   }, [persistJwt])
 
-  const retryBackendConnection = useCallback(async () => {
-    setSessionState('checking')
-    const isHealthy = await checkBackendHealth()
-    if (isHealthy) {
-      const storedToken = safeGetLocalStorage(LOCAL_SESSION_KEY)
-      if (storedToken && isValidJwtFormat(storedToken)) {
-        setJwt(storedToken)
-        setSessionState('authenticated')
-      } else {
-        setSessionState('unauthenticated')
-      }
-    } else {
-      setSessionState('backend_unavailable')
+  const finalizeAuthenticatedSession = useCallback(async () => {
+    const clerkToken = await getToken()
+    if (!clerkToken) {
+      throw new Error('Unable to access your Clerk session.')
     }
-  }, [])
+
+    const data = await exchangeClerkSession(clerkToken)
+    persistJwt(data.token)
+    persistPreferences(data.preferences ?? {})
+    setPendingEmail(null)
+    setError(null)
+    setSessionState('authenticated')
+  }, [getToken, persistJwt, persistPreferences])
+
+  const signOut = useCallback(() => {
+    clearLocalSession()
+    setSessionState('unauthenticated')
+    void clerk.signOut()
+  }, [clearLocalSession, clerk])
+
+  const syncSessionState = useCallback(async () => {
+    const isHealthy = await checkBackendHealth()
+    if (!isHealthy) {
+      setSessionState('backend_unavailable')
+      return
+    }
+
+    if (!isSignedIn) {
+      clearLocalSession()
+      setError(null)
+      setSessionState('unauthenticated')
+      return
+    }
+
+    try {
+      await finalizeAuthenticatedSession()
+    } catch (err) {
+      clearLocalSession()
+      setError(extractClerkErrorMessage(err, 'Unable to finish your Clerk sign-in.'))
+      setSessionState('unauthenticated')
+    }
+  }, [clearLocalSession, finalizeAuthenticatedSession, isSignedIn])
+
+  const retryBackendConnection = useCallback(async () => {
+    if (!clerkLoaded) {
+      return
+    }
+
+    setSessionState('checking')
+    await syncSessionState()
+  }, [clerkLoaded, syncSessionState])
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      const storedPrefs = safeGetLocalStorage(LOCAL_PREF_KEY)
-      const parsedPrefs = safeParseJson<UserPreferences>(storedPrefs, {})
-      setPreferences(parsedPrefs)
-
-      if (typeof window !== 'undefined' && window.location.hash) {
-        const hashParams = new URLSearchParams(window.location.hash.substring(1))
-        const accessToken = hashParams.get('access_token')
-        if (accessToken && isValidJwtFormat(accessToken)) {
-          setJwt(accessToken)
-          setSessionState('authenticated')
-          persistJwt(accessToken)
-          window.history.replaceState(null, '', window.location.pathname + window.location.search)
-          return
-        }
-      }
-
-      const storedToken = safeGetLocalStorage(LOCAL_SESSION_KEY)
-      
-      if (storedToken) {
-        if (!isValidJwtFormat(storedToken)) {
-          console.warn('Stored JWT appears corrupted, clearing and requiring login')
-          persistJwt(null)
-          setSessionState('unauthenticated')
-          return
-        }
-
-        const isHealthy = await checkBackendHealth()
-        if (!isHealthy) {
-          console.warn('Backend is unavailable')
-          setJwt(storedToken)
-          setSessionState('backend_unavailable')
-          return
-        }
-
-        setJwt(storedToken)
-        setSessionState('authenticated')
-      } else {
-        const isHealthy = await checkBackendHealth()
-        if (!isHealthy) {
-          setSessionState('backend_unavailable')
-          return
-        }
-        setSessionState('unauthenticated')
-      }
+    if (!clerkLoaded) {
+      return
     }
 
-    initializeAuth()
-  }, [persistJwt])
+    const storedPrefs = safeGetLocalStorage(LOCAL_PREF_KEY)
+    setPreferences(safeParseJson<UserPreferences>(storedPrefs, {}))
+    setSessionState('checking')
+
+    void syncSessionState()
+  }, [clerkLoaded, syncSessionState])
 
   const setField = (field: keyof AuthState, value: string) => {
     setAuth((prev) => ({ ...prev, [field]: value }))
@@ -287,7 +318,15 @@ export function AuthProvider({ children }: Props) {
       }
 
       if (res.status === 401 || res.status === 403) {
-        console.warn(`Auth error (${res.status}) refreshing preferences, signing out`)
+        console.warn(`Auth error (${res.status}) refreshing preferences`)
+        if (isSignedIn) {
+          try {
+            await finalizeAuthenticatedSession()
+            return
+          } catch (exchangeErr) {
+            console.error('Failed to refresh Clerk-backed session:', exchangeErr)
+          }
+        }
         signOut()
         return
       }
@@ -314,7 +353,7 @@ export function AuthProvider({ children }: Props) {
     } catch (err) {
       console.error('Failed to refresh preferences, using cached:', err)
     }
-  }, [jwt, persistPreferences, signOut])
+  }, [finalizeAuthenticatedSession, isSignedIn, jwt, persistPreferences, signOut])
 
   useEffect(() => {
     if (jwt && sessionState === 'authenticated') {
@@ -324,96 +363,51 @@ export function AuthProvider({ children }: Props) {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setError(
+      mode === 'sign_in'
+        ? 'Email/password sign-in has been replaced here. Use Continue with Google.'
+        : 'Email/password sign-up has been replaced here. Use Continue with Google.'
+    )
+  }
+
+  const handleGoogleAuth = useCallback(async () => {
+    if (!clerkLoaded || !clerk.client || typeof window === 'undefined') {
+      setError('Authentication is still loading. Please try again in a moment.')
+      return
+    }
+
     setError(null)
     setLoading(true)
 
     try {
-      if (!auth.email.endsWith('@chapman.edu')) {
-        throw new Error('Use your @chapman.edu email to continue.')
-      }
+      const redirectUrls = buildClerkRedirectUrls(window.location)
 
-      if (mode === 'sign_up' && auth.password !== auth.confirmPassword) {
-        throw new Error('Passwords must match.')
-      }
-
-      const endpoint = mode === 'sign_in' ? '/api/auth/sign-in' : '/api/auth/sign-up'
-      
-      let res: Response
-      try {
-        res = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            email: auth.email,
-            password: auth.password
-          })
+      if (mode === 'sign_in') {
+        await clerk.client.signIn.authenticateWithRedirect({
+          strategy: 'oauth_google',
+          ...redirectUrls,
         })
-      } catch (err) {
-        if (isNetworkError(err)) {
-          throw new Error('Unable to connect to server. Please check your internet connection and try again.')
-        }
-        throw err
-      }
-
-      if (res.status === 502 || res.status === 503) {
-        throw new Error('Service is temporarily unavailable. Please try again in a few moments.')
-      }
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Unable to process request.')
-      }
-
-      if (data.status === 'pending_confirmation') {
-        setSessionState('pending_confirmation')
-        setPendingEmail(data.user?.email ?? auth.email)
-        persistJwt(null)
-        return
-      }
-
-      persistJwt(data.token)
-      setSessionState('authenticated')
-
-      if (data.preferences) {
-        persistPreferences(data.preferences)
+      } else {
+        await clerk.client.signUp.authenticateWithRedirect({
+          strategy: 'oauth_google',
+          ...redirectUrls,
+        })
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unable to process request.'
-      setError(message)
-    } finally {
+      setError(
+        extractClerkErrorMessage(
+          err,
+          mode === 'sign_in'
+            ? 'Unable to sign in with Google.'
+            : 'Unable to sign up with Google.'
+        )
+      )
       setLoading(false)
     }
-  }
+  }, [clerk, clerkLoaded, mode])
 
   const resendConfirmation = async () => {
-    if (!pendingEmail) {
-      throw new Error('No pending email to confirm.')
-    }
-
-    try {
-      const res = await fetch('/api/auth/resend-confirmation', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({ email: pendingEmail })
-      })
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Unable to resend confirmation email.')
-      }
-    } catch (err) {
-      if (isNetworkError(err)) {
-        throw new Error('Unable to connect to server. Please check your internet connection and try again.')
-      }
-      throw err
-    }
+    throw new Error('Email confirmation is no longer handled by this touched Clerk flow.')
   }
 
   const value: AuthContextValue = useMemo(
@@ -429,13 +423,14 @@ export function AuthProvider({ children }: Props) {
       setMode,
       setField,
       handleSubmit,
+      handleGoogleAuth,
       refreshPreferences,
       resendConfirmation,
       signOut,
       mergePreferences,
       retryBackendConnection,
     }),
-    [sessionState, mode, auth, loading, error, preferences, jwt, pendingEmail, mergePreferences, signOut, refreshPreferences, retryBackendConnection]
+    [sessionState, mode, auth, loading, error, preferences, jwt, pendingEmail, handleGoogleAuth, mergePreferences, signOut, refreshPreferences, retryBackendConnection]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

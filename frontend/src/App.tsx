@@ -1,10 +1,10 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
-import { FiMail, FiLock } from "react-icons/fi";
+import { AuthenticateWithRedirectCallback } from "@clerk/react";
 import { useAuth } from "./auth/AuthContext";
+import { CLERK_CALLBACK_PATH } from "./auth/clerkAuth";
 import AuthCard from "./components/AuthCard";
 import AuthTabs from "./components/AuthTabs";
-import TextField from "./components/TextField";
 import SubmitButton from "./components/SubmitButton";
 import EmailConfirmationNotice from "./components/EmailConfirmationNotice";
 import Sidebar from "./components/Sidebar";
@@ -25,13 +25,26 @@ export default function App() {
     error,
     preferences,
     setMode,
-    setField,
-    handleSubmit,
+    handleGoogleAuth,
     pendingEmail,
     resendConfirmation,
     signOut,
     retryBackendConnection,
   } = useAuth();
+
+  if (location.pathname === CLERK_CALLBACK_PATH) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface-muted text-text-primary px-4">
+        <div className="w-full max-w-md space-y-4 text-center">
+          <AuthenticateWithRedirectCallback />
+          <div id="clerk-captcha" />
+          <div className="text-sm font-medium tracking-[0.025em] animate-pulse">
+            Finishing your Google sign-in...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (sessionState === "checking") {
     return (
@@ -194,54 +207,32 @@ export default function App() {
           <div className="mb-4 sm:mb-5">
             <AuthTabs mode={mode} onChange={setMode} />
           </div>
-          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-4">
-            <TextField
-              label="Chapman Email"
-              type="email"
-              value={auth.email}
-              onChange={(v) => setField("email", v)}
-              placeholder="you@chapman.edu"
-              autoComplete="email"
-              required
-              leftIcon={<FiMail size={16} />}
-            />
-            <TextField
-              label="Password"
-              type="password"
-              value={auth.password}
-              onChange={(v) => setField("password", v)}
-              placeholder={
-                mode === "sign_in"
-                  ? "Enter your password"
-                  : "Create a strong password"
-              }
-              autoComplete={
-                mode === "sign_in" ? "current-password" : "new-password"
-              }
-              required
-              leftIcon={<FiLock size={16} />}
-            />
-            {mode === "sign_up" ? (
-              <TextField
-                label="Confirm Password"
-                type="password"
-                value={auth.confirmPassword}
-                onChange={(v) => setField("confirmPassword", v)}
-                placeholder="Re-enter password"
-                autoComplete="new-password"
-                required
-                leftIcon={<FiLock size={16} />}
-              />
-            ) : null}
+          <div className="space-y-4 sm:space-y-5">
+            <div className="rounded-2xl border border-slate-200/70 bg-surface-muted/60 px-4 py-4 text-left sm:px-5">
+              <h2 className="text-base sm:text-lg font-semibold text-text-primary">
+                {mode === "sign_in"
+                  ? "Sign in with your Chapman Google account"
+                  : "Create your account with your Chapman Google account"}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-text-secondary">
+                {mode === "sign_in"
+                  ? "Use your Chapman Google account to continue with Clerk."
+                  : "Use your Chapman Google account to create your Clerk-backed account and continue."}
+              </p>
+            </div>
             {error ? (
               <div className="text-sm text-danger text-center py-2 px-3 rounded-lg bg-[rgba(239,68,68,0.08)]">
                 {error}
               </div>
             ) : null}
-            <SubmitButton loading={loading}>
-              {mode === "sign_in" ? "Sign In" : "Create Account"}
+            <SubmitButton loading={loading} onClick={() => void handleGoogleAuth()}>
+              Continue with Google
             </SubmitButton>
-          </form>
+            <div className="rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-4 text-sm leading-6 text-text-secondary sm:px-5">
+              Email/password entry has been superseded in this touched auth flow.
+              Continue with Google is the supported Clerk path for both sign in and sign up.
+            </div>
+          </div>
         </AuthCard>
       </div>
     </div>

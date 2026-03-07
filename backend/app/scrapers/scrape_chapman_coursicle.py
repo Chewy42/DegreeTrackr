@@ -3,7 +3,7 @@
 Standalone Chapman Coursicle scraper - combines scraper and decoder in one file.
 Run: python chapman_coursicle_standalone.py
 
-Output: chapman_coursicle_spring2026.csv in the current directory.
+Output: backend/data/chapman_coursicle_spring2026.csv.
 """
 
 import base64
@@ -82,6 +82,10 @@ HEADERS = {
     "x-requested-with": "XMLHttpRequest",
 }
 
+MAX_RETRIES = 3
+BASE_BACKOFF_SECONDS = 20.0
+EMPTY_PAGE_THRESHOLD = 2
+
 
 def get_output_path() -> Path:
     """Return the canonical CSV output path under backend/data."""
@@ -89,12 +93,79 @@ def get_output_path() -> Path:
     return backend_root / "data" / f"chapman_coursicle_{SEMESTER}.csv"
 
 
+def get_available_classes_path() -> Path:
+    """Return the app-facing Spring 2026 classes CSV path."""
+    return get_output_path().with_name("available_classes_spring_2026.csv")
+
+
+def get_unique_available_classes_path() -> Path:
+    """Return the deduplicated class-code CSV path."""
+    return get_output_path().with_name("unique_available_classes_spring_2026.csv")
+
+
+def load_csv_rows(path: Path) -> List[Dict[str, str]]:
+    """Load CSV rows from disk, returning an empty list when the file is absent."""
+    if not path.exists():
+        return []
+
+    with open(path, "r", encoding="utf-8", newline="") as f:
+        return list(csv.DictReader(f))
+
+
+def dedupe_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Deduplicate rows by class code while preserving first-seen order."""
+    deduped: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        class_id = row.get("class", "")
+        if class_id and class_id not in deduped:
+            deduped[class_id] = row
+    return list(deduped.values())
+
+
+def write_rows(path: Path, rows: List[Dict[str, Any]]) -> None:
+    """Write a full CSV, inferring fieldnames from the provided rows."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not rows:
+        return
+
+    fieldnames = sorted({key for row in rows for key in row.keys()})
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def sync_app_data(scraped_rows: List[Dict[str, Any]]) -> None:
+    """Refresh app-facing CSVs when the scraped dataset is at least as complete."""
+    if not scraped_rows:
+        return
+
+    deduped_rows = dedupe_rows(scraped_rows)
+    app_path = get_available_classes_path()
+    existing_app_rows = dedupe_rows(load_csv_rows(app_path))
+
+    if existing_app_rows and len(deduped_rows) < len(existing_app_rows):
+        print(
+            f"Skipping {app_path.name} refresh because scraped output has {len(deduped_rows)} unique classes "
+            f"vs {len(existing_app_rows)} already present."
+        )
+        return
+
+    write_rows(app_path, deduped_rows)
+
+    unique_rows = [{"class": row["class"]} for row in deduped_rows if row.get("class")]
+    write_rows(get_unique_available_classes_path(), unique_rows)
+
+    print(f"Refreshed {app_path} with {len(deduped_rows)} unique Chapman classes.")
+    print(f"Refreshed {get_unique_available_classes_path()} with {len(unique_rows)} class IDs.")
+
+
 # ============================================================================
 # SCRAPER FUNCTIONS
 # ============================================================================
 
 def fetch_page(offset: int, query: str = "") -> List[Dict[str, Any]]:
-    """Fetch a single page of results."""
+    """Fetch a single page of results with basic retry/backoff for 429s."""
     params = {
         "school": SCHOOL,
         "semester": SEMESTER,
@@ -107,43 +178,69 @@ def fetch_page(offset: int, query: str = "") -> List[Dict[str, Any]]:
     if query:
         params["query"] = query
 
-    response = requests.get(BASE_URL, params=params, headers=HEADERS, timeout=30)
-    response.raise_for_status()
+    for attempt in range(MAX_RETRIES):
+        response = requests.get(BASE_URL, params=params, headers=HEADERS, timeout=30)
 
-    try:
-        data = response.json()
-    except ValueError:
-        decrypted = decode_coursicle_response(response.text)
-        start = decrypted.find("{")
-        end = decrypted.rfind("}") + 1
-        data = json.loads(decrypted[start:end])
+        if response.status_code == 429:
+            if attempt == MAX_RETRIES - 1:
+                raise requests.HTTPError(
+                    f"429 Client Error: Too Many Requests for offset={offset}, query={query!r}",
+                    response=response,
+                )
 
-    classes = data.get("classes", [])
-    return [row for row in classes if isinstance(row, dict)]
+            backoff_seconds = BASE_BACKOFF_SECONDS * (2 ** attempt) + random.uniform(0, 5)
+            print(
+                f"Rate limited for query={query!r}, offset={offset}; "
+                f"waiting {backoff_seconds:.1f}s before retry {attempt + 2}/{MAX_RETRIES}..."
+            )
+            time.sleep(backoff_seconds)
+            continue
+
+        response.raise_for_status()
+
+        try:
+            data = response.json()
+        except ValueError:
+            decrypted = decode_coursicle_response(response.text)
+            start = decrypted.find("{")
+            end = decrypted.rfind("}") + 1
+            data = json.loads(decrypted[start:end])
+
+        classes = data.get("classes", [])
+        return [row for row in classes if isinstance(row, dict)]
+
+    return []
 
 
 def scrape_letter_pages(letter: str) -> Generator[List[Dict[str, Any]], None, None]:
     """Yield pages of results for a single letter query."""
     offset = 0
-    while offset < 100:
+    consecutive_empty_pages = 0
+    while True:
         try:
             page = fetch_page(offset, letter)
         except Exception as e:
             print(f"Error fetching page {offset} for letter {letter}: {e}")
             break
-            
+
         if not page:
-            break
-        yield page
-        offset += 1
+            consecutive_empty_pages += 1
+            if consecutive_empty_pages >= EMPTY_PAGE_THRESHOLD:
+                break
+        else:
+            consecutive_empty_pages = 0
+            yield page
+
+        offset += COUNT
         # Random delay between pages to avoid rate limiting
         time.sleep(random.uniform(1.0, 3.0))
 
 
 def scrape_all() -> None:
     """Scrape all classes by querying each letter a-z, saving incrementally."""
-    filename = get_output_path()
-    filename.parent.mkdir(parents=True, exist_ok=True)
+    output_path = get_output_path()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    filename = str(output_path)
     seen_ids = set()
     fieldnames = None
 
@@ -206,6 +303,7 @@ def scrape_all() -> None:
 
 def main() -> None:
     scrape_all()
+    sync_app_data(load_csv_rows(get_output_path()))
     print(f"\nScraping complete. Data saved to {get_output_path()}")
 
 

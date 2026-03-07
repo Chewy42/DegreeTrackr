@@ -14,6 +14,7 @@ from app.services.chat_service import (
             generate_reply,
             generate_reply_stream,
             get_chat_history, 
+            session_belongs_to_user,
             reset_onboarding_session
         )
 from app.services.supabase_client import supabase_request
@@ -192,13 +193,8 @@ def clear_sessions():
 def get_session_history_route(session_id):
     try:
         user_id, _ = _get_user_context()
-        # Ideally verify user owns session, but get_chat_history relies on RLS or we trust the ID for now.
-        # Actually RLS is enabled on chat_messages so we should be fine if we were using Supabase client with user token,
-        # but here we use service role usually? No, supabase_request uses service role.
-        # We should verify ownership.
-        # For now, let's assume the frontend passes a valid ID and we rely on the fact that
-        # a user can't guess UUIDs easily.
-        # TODO: Add ownership check.
+        if not session_belongs_to_user(user_id, session_id):
+            return jsonify({"error": "Chat session not found"}), 404
         
         history = get_chat_history(session_id)
         return jsonify({"messages": history})
@@ -220,6 +216,8 @@ def chat_explore():
     try:
         if not session_id:
             session_id = create_explore_session(user_id, email)
+        elif not session_belongs_to_user(user_id, session_id):
+            return jsonify({"error": "Chat session not found"}), 404
         
         history = get_chat_history(session_id)
         
@@ -267,6 +265,8 @@ def chat_explore_stream():
             session_id = create_explore_session(user_id, email)
             created_new_session = True
             print(f"Created new explore session: {session_id}", file=sys.stdout, flush=True)
+        elif not session_belongs_to_user(user_id, session_id):
+            return jsonify({"error": "Chat session not found"}), 404
         
         def generate():
             try:

@@ -28,11 +28,18 @@ MAX_TOKEN_BUDGET = 100000  # ~400,000 characters, but we'll aim much lower
 MAX_CHAR_BUDGET = 100000   # Approximately 25,000 tokens
 logging.basicConfig(level=logging.INFO)
 
-# Initialize OpenAI Client
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-    base_url=os.getenv("OPENAI_BASE_URL")
-)
+def _build_openai_client() -> Optional[OpenAI]:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+
+    return OpenAI(
+        api_key=api_key,
+        base_url=os.getenv("OPENAI_BASE_URL")
+    )
+
+
+client = _build_openai_client()
 MODEL = os.getenv("OPENAI_MODEL", "openai/gpt-5-nano")
 
 # Data file paths
@@ -945,6 +952,10 @@ FINAL CHECK: Verify your selection has {min_credits}-{max_credits} total credits
     # 5. Call LLM
     try:
         logger.info(f"Calling LLM for schedule generation... Using model: {MODEL}")
+
+        if client is None:
+            logger.warning("Schedule generation skipped because OPENAI_API_KEY is not configured")
+            return {"error": "OPENAI_API_KEY is not configured", "class_ids": []}
 
         response = client.chat.completions.create(
             model=MODEL,

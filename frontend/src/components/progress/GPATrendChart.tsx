@@ -98,7 +98,7 @@ export default function GPATrendChart({ courses }: GPATrendChartProps) {
     const termMap = new Map<string, { courses: Course[]; order: number; fullTerm: string }>();
 
     courses.forEach((course) => {
-      if (!course.term || !course.grade || !GRADE_POINTS[course.grade]) return;
+      if (!course.term || !course.grade || GRADE_POINTS[course.grade] === undefined) return;
       
       const parsed = parseTerm(course.term);
       const key = `${parsed.year}-${parsed.season}`;

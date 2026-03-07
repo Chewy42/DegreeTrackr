@@ -19,8 +19,8 @@ from app.services.evaluation_service import (
 from app.services.program_evaluation_store import (
 	has_program_evaluation as has_local_program_evaluation,
 	load_parsed_payload,
-	persist_parsed_payload,
 	parsed_payload_path_for_email,
+	persist_parsed_payload,
 	program_evaluation_path_for_email,
 	save_uploaded_pdf,
 )
@@ -197,7 +197,6 @@ def get_parsed_program_evaluation():
                 print(f"Parsing skipped due to error: {exc}")
             payload = _parsed_payload(email, pdf_path.name, parsed_data)
             persist_parsed_payload(email, payload)
-
         if not payload:
             return jsonify({"error": "No parsed evaluation found."}), 404
 

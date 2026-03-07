@@ -50,7 +50,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface-muted text-text-primary px-4">
         <div className="text-sm font-medium tracking-[0.025em] text-center animate-pulse">
-          Preparing your EduTrackr workspace...
+          Preparing your DegreeTrackr workspace...
         </div>
       </div>
     );
@@ -112,7 +112,7 @@ export default function App() {
             <div className="min-h-full flex items-center justify-center">
               <AuthCard
                 title="Upload your program evaluation"
-                subtitle="Start by uploading your official program evaluation PDF so EduTrackr can understand your path."
+                subtitle="Start by uploading your official program evaluation PDF so DegreeTrackr can understand your path."
                 maxWidth="max-w-7xl"
               >
                 <ProgramEvaluationUpload />
@@ -172,7 +172,7 @@ export default function App() {
       );
     }
 
-    let title = "Welcome to EduTrackr";
+    let title = "Welcome to DegreeTrackr";
     let subtitle = "You are signed in. Next: connect session state and onboarding.";
     let body: React.ReactNode = (
       <div className="text-sm text-text-secondary text-center py-1">
@@ -201,7 +201,7 @@ export default function App() {
     <div className="min-h-screen flex items-center justify-center bg-surface-muted text-text-primary px-4 py-6">
       <div className="relative w-full max-w-xl">
         <AuthCard
-          title="EduTrackr"
+          title="DegreeTrackr"
           subtitle="Sign in or create your account to continue"
         >
           <div className="mb-4 sm:mb-5">

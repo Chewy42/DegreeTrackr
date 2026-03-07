@@ -53,7 +53,7 @@ export default function Sidebar() {
       <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
         {!collapsed && (
           <span className="text-lg font-semibold tracking-tight">
-            EduTrackr
+            DegreeTrackr
           </span>
         )}
         <button

@@ -41,8 +41,8 @@ export type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
-const LOCAL_SESSION_KEY = 'edutrackr.auth.jwt'
-const LOCAL_PREF_KEY = 'edutrackr.preferences'
+const LOCAL_SESSION_KEY = 'degreetrackr.auth.jwt'
+const LOCAL_PREF_KEY = 'degreetrackr.preferences'
 
 type Props = {
   children: React.ReactNode

@@ -142,7 +142,7 @@ export default function SettingsPage() {
     <div className="min-h-full flex items-center justify-center py-8">
       <AuthCard
         title="Settings"
-        subtitle="Adjust your EduTrackr experience."
+        subtitle="Adjust your DegreeTrackr experience."
         maxWidth="max-w-3xl"
       >
         <div className="space-y-8">

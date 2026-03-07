@@ -1,7 +1,7 @@
-# EduTrackr - Education Tracking Platform
+# DegreeTrackr - Education Tracking Platform
 
 ## Overview
-EduTrackr is a full-stack web application for Chapman University students to track their education and courses. The application features a React frontend with Material-UI and a Flask Python backend with JWT authentication.
+DegreeTrackr is a full-stack web application for Chapman University students to track their education and courses. The application features a React frontend with Material-UI and a Flask Python backend with JWT authentication.
 
 ## Project Architecture
 

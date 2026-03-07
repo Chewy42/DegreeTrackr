@@ -1,36 +1,62 @@
-import React, { useMemo, useState } from "react";
-import { FiSearch, FiBookOpen, FiUser } from "react-icons/fi";
-import type { Course } from "./progress/ProgressPage";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { FiAlertCircle, FiBookOpen, FiLoader, FiSearch, FiUser } from "react-icons/fi";
+import { useAuth } from "../auth/AuthContext";
 
-// TODO: Replace with real upcoming-classes API once available
-const MOCK_CLASSES: Array<{
+type UpcomingClass = {
   id: string;
   code: string;
   title: string;
   professor: string;
   term: string;
-}> = [
-  { id: "cs510", code: "CS 510", title: "Advanced Algorithms", professor: "Dr. Lee", term: "Spring 2026" },
-  { id: "engr520", code: "ENGR 520", title: "Embedded Systems Design", professor: "Dr. Patel", term: "Spring 2026" },
-  { id: "cs530", code: "CS 530", title: "Machine Learning", professor: "Dr. Kim", term: "Fall 2026" },
-  { id: "engr501", code: "ENGR 501", title: "Graduate Seminar", professor: "Staff", term: "Fall 2026" },
-];
+};
 
 export default function ExploreClassesSidebar() {
+  const { jwt } = useAuth();
   const [query, setQuery] = useState("");
+  const [classes, setClasses] = useState<UpcomingClass[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchUpcomingClasses = useCallback(async () => {
+    if (!jwt) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/classes/upcoming", {
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+          Accept: "application/json",
+        },
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to load classes (${res.status})`);
+      }
+      const data = (await res.json()) as UpcomingClass[];
+      setClasses(data);
+    } catch (err) {
+      console.error("Failed to fetch upcoming classes:", err);
+      setError("Could not load classes. Please try again later.");
+      setClasses([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [jwt]);
+
+  useEffect(() => {
+    void fetchUpcomingClasses();
+  }, [fetchUpcomingClasses]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return MOCK_CLASSES;
-    return MOCK_CLASSES.filter((cls) => {
-      return (
+    if (!q) return classes;
+    return classes.filter(
+      (cls) =>
         cls.code.toLowerCase().includes(q) ||
         cls.title.toLowerCase().includes(q) ||
         cls.professor.toLowerCase().includes(q) ||
-        cls.term.toLowerCase().includes(q)
-      );
-    });
-  }, [query]);
+        cls.term.toLowerCase().includes(q),
+    );
+  }, [query, classes]);
 
   return (
     <aside className="flex-1 flex flex-col h-full">
@@ -51,7 +77,21 @@ export default function ExploreClassesSidebar() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-2">
-        {filtered.map((cls) => (
+        {loading && (
+          <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400 mt-6">
+            <FiLoader className="h-3.5 w-3.5 animate-spin" />
+            <span>Loading classes…</span>
+          </div>
+        )}
+
+        {!loading && error && (
+          <div className="flex items-start gap-2 rounded-lg border border-red-100 bg-red-50 p-3 mt-4 text-[11px] text-red-600">
+            <FiAlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {!loading && !error && filtered.map((cls) => (
           <div
             key={cls.id}
             className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50/60 hover:border-blue-200 transition-colors p-3 text-xs cursor-pointer"
@@ -70,7 +110,8 @@ export default function ExploreClassesSidebar() {
             </div>
           </div>
         ))}
-        {filtered.length === 0 && (
+
+        {!loading && !error && filtered.length === 0 && classes.length > 0 && (
           <div className="text-[11px] text-slate-400 text-center mt-6">
             No matching classes found.
           </div>

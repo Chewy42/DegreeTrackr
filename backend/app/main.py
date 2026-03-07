@@ -674,6 +674,85 @@ def _reverse_priority_map(priority_focus: str | None) -> str | None:
     return reverse_map.get(priority_focus)
 
 
+_TERM_DISPLAY: Dict[str, str] = {
+    'spring2026': 'Spring 2026',
+    'fall2026': 'Fall 2026',
+    'summer2026': 'Summer 2026',
+    'spring2025': 'Spring 2025',
+    'fall2025': 'Fall 2025',
+}
+
+_DEFAULT_UPCOMING_CLASSES = [
+    {'id': 'cpsc542', 'code': 'CPSC 542', 'title': 'Deep Learning', 'professor': 'Dr. Fahy', 'term': 'Spring 2026'},
+    {'id': 'cpsc570', 'code': 'CPSC 570', 'title': 'Artificial Intelligence', 'professor': 'Dr. Linstead', 'term': 'Spring 2026'},
+    {'id': 'cs533', 'code': 'CS 533', 'title': 'Computational Methods in Financial Markets', 'professor': 'Dr. Gjerstad', 'term': 'Spring 2026'},
+    {'id': 'eeng511', 'code': 'EENG 511', 'title': 'Control Systems and Applications', 'professor': 'Dr. Lemus', 'term': 'Spring 2026'},
+    {'id': 'cs611', 'code': 'CS 611', 'title': 'Advanced Artificial Intelligence', 'professor': 'Dr. El-Rewini', 'term': 'Spring 2026'},
+]
+
+_GRAD_SUBJECTS = {'CPSC', 'CS', 'EENG', 'ENGR'}
+
+
+@app.route('/classes/upcoming', methods=['GET'])
+def get_upcoming_classes():
+    """Return a list of upcoming graduate classes tailored to the authenticated user."""
+    try:
+        payload = decode_app_token_from_request()
+        email = payload.get('email', '')
+        if not email:
+            return jsonify({'error': 'Invalid token'}), 401
+
+        from app.services.classes_service import load_all_classes
+
+        all_classes = load_all_classes()
+
+        upcoming = []
+        seen_ids: set = set()
+
+        for cls in all_classes:
+            # Only graduate-level (500+) courses from target subjects
+            if cls.subject not in _GRAD_SUBJECTS:
+                continue
+            try:
+                course_num = int(cls.number)
+            except (ValueError, TypeError):
+                continue
+            if course_num < 500:
+                continue
+
+            # Skip thesis/dissertation/seminar placeholders
+            if cls.professor in ('TBA', '') and not cls.title:
+                continue
+
+            class_id = cls.id
+            if class_id in seen_ids:
+                continue
+            seen_ids.add(class_id)
+
+            term = _TERM_DISPLAY.get(cls.semester or '', cls.semester or 'Spring 2026')
+            upcoming.append({
+                'id': class_id,
+                'code': cls.code.split('-')[0].strip(),
+                'title': cls.title,
+                'professor': cls.professor or 'TBA',
+                'term': term,
+            })
+
+        if not upcoming:
+            return jsonify(_DEFAULT_UPCOMING_CLASSES), 200
+
+        # Sort: Spring 2026 first, then alphabetically by code
+        upcoming.sort(key=lambda c: (c['term'], c['code']))
+
+        return jsonify(upcoming), 200
+
+    except pyjwt.ExpiredSignatureError:
+        return jsonify({'error': 'Token expired'}), 401
+    except Exception as e:
+        print(f"Error fetching upcoming classes: {e}")
+        return jsonify({'error': 'Failed to fetch upcoming classes'}), 500
+
+
 app.register_blueprint(program_evaluations_bp)
 app.register_blueprint(chat_bp)
 app.register_blueprint(schedule_bp)

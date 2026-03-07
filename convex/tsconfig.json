@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "dom"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "convex/server": ["../frontend/node_modules/convex/dist/esm-types/server/index.d.ts"],
+      "convex/values": ["../frontend/node_modules/convex/dist/esm-types/values/index.d.ts"],
+      "convex/*": ["../frontend/node_modules/convex/dist/esm-types/*"]
+    }
+  },
+  "include": ["."]
+}

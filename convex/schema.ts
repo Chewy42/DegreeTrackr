@@ -66,6 +66,16 @@ export default defineSchema({
     createdAt: v.number(),
   }).index('by_sessionId_and_createdAt', ['sessionId', 'createdAt']),
 
+  // ── Schedule snapshots ─────────────────────────────────────────────────────
+  scheduleSnapshots: defineTable({
+    userId: v.string(), // Clerk user ID (identity.subject)
+    name: v.string(),
+    classIds: v.array(v.string()),
+    totalCredits: v.number(),
+    createdAt: v.number(), // epoch ms
+    migrationSource,
+  }).index('by_userId', ['userId']),
+
   // ── Program evaluations ────────────────────────────────────────────────────
   programEvaluations: defineTable({
     userId: v.id('userProfiles'),

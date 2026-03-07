@@ -1,8 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { FiLogOut, FiCheck, FiRefreshCw, FiSettings } from "react-icons/fi";
+import { useMutation, useQuery } from "convex/react";
 import { useAuth } from "../auth/AuthContext";
 import AuthCard from "./AuthCard";
 import ProgramEvaluationViewer from "./ProgramEvaluationViewer";
+import { convexApi } from "../lib/convex/api";
+import { isConvexFeatureEnabled } from "../lib/convex/config";
+import type { SchedulingPreferencesFormValues } from "../lib/convex/contracts";
 
 type SchedulingPreferences = {
   planning_mode?: string | null;
@@ -84,8 +88,27 @@ export default function SettingsPage() {
   const [savingField, setSavingField] = useState<string | null>(null);
   const [successField, setSuccessField] = useState<string | null>(null);
 
+  const convexSchedulingPrefs = useQuery(
+    convexApi.profile.getCurrentSchedulingPreferences,
+    isConvexFeatureEnabled() ? {} : "skip",
+  );
+  const updateSchedulingPrefs = useMutation(convexApi.profile.updateCurrentSchedulingPreferences);
+
+  // Sync Convex query results into local state when data arrives
+  useEffect(() => {
+    if (convexSchedulingPrefs != null) {
+      setPreferences(convexSchedulingPrefs);
+      setLoadState("ready");
+    }
+  }, [convexSchedulingPrefs]);
+
   const fetchPreferences = useCallback(async () => {
     if (!jwt) return;
+    // If Convex already provided data, skip the Flask fetch
+    if (convexSchedulingPrefs != null) {
+      setLoadState("ready");
+      return;
+    }
     setLoadState("loading");
     try {
       const res = await fetch("/api/auth/scheduling-preferences", {
@@ -104,7 +127,7 @@ export default function SettingsPage() {
     } catch {
       setLoadState("error");
     }
-  }, [jwt]);
+  }, [jwt, convexSchedulingPrefs]);
 
   useEffect(() => {
     fetchPreferences();
@@ -112,30 +135,48 @@ export default function SettingsPage() {
 
   const updatePreference = async (field: keyof SchedulingPreferences, value: string) => {
     if (!jwt || savingField) return;
-    
+
     setSavingField(field);
     setSuccessField(null);
-    
-    try {
-      const res = await fetch("/api/auth/scheduling-preferences", {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ [field]: value }),
-      });
-      
-      if (res.ok) {
-        setPreferences((prev) => ({ ...prev, [field]: value }));
-        setSuccessField(field);
-        setTimeout(() => setSuccessField(null), 2000);
+
+    let saved = false;
+
+    // Try Convex first
+    if (isConvexFeatureEnabled()) {
+      try {
+        await updateSchedulingPrefs({ patch: { [field]: value } as SchedulingPreferencesFormValues });
+        saved = true;
+      } catch {
+        // Fall through to Flask
       }
-    } catch {
-      // Silent fail - user can try again
-    } finally {
-      setSavingField(null);
     }
+
+    // Fall back to Flask if Convex failed or is disabled
+    if (!saved) {
+      try {
+        const res = await fetch("/api/auth/scheduling-preferences", {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${jwt}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ [field]: value }),
+        });
+        if (res.ok) {
+          saved = true;
+        }
+      } catch {
+        // Silent fail - user can try again
+      }
+    }
+
+    if (saved) {
+      setPreferences((prev) => ({ ...prev, [field]: value }));
+      setSuccessField(field);
+      setTimeout(() => setSuccessField(null), 2000);
+    }
+
+    setSavingField(null);
   };
 
   return (

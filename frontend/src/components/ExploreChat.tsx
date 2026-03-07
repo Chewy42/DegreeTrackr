@@ -1,15 +1,19 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { 
-  FiSend, 
+import {
+  FiSend,
   FiPlus,
   FiMessageSquare
 } from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAuth } from "../auth/AuthContext";
+import {
+  getSessionMessagesConvex,
+  sendCurrentExploreMessageConvex,
+} from "../lib/convex";
 
 type Message = {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
   timestamp?: Date;
 };
@@ -19,19 +23,25 @@ type Props = {
   onSessionChange: (id: string | null) => void;
 };
 
+const DEFAULT_SUGGESTIONS = [
+  "What can I do with my major?",
+  "Am I on track to graduate?",
+  "Show me my degree progress",
+];
+
 export default function ExploreChat({ sessionId, onSessionChange }: Props) {
   const { jwt } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>(DEFAULT_SUGGESTIONS);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [streamingContent, setStreamingContent] = useState<string>("");
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeSessionRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const isSendingRef = useRef(false); // Track if we're actively sending to prevent history clear
+  const isSendingRef = useRef(false);
 
   const scrollToBottom = useCallback((smooth = true) => {
     if (scrollRef.current) {
@@ -42,71 +52,61 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
     }
   }, []);
 
-  // Load session history when sessionId changes
+  // Load session history from Convex when sessionId changes
   useEffect(() => {
     if (!jwt) return;
-
-    // Skip fetching history if we're in the middle of sending a message
-    // (this means we just created a new session and already have the user's message in state)
-    // Use ref instead of state to avoid stale closure issues
     if (isSendingRef.current) return;
 
-    // Cancel any in-flight requests when switching sessions
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
 
-    // Track the current session to avoid race conditions
     activeSessionRef.current = sessionId;
 
     if (sessionId) {
-      // Switching to an existing session - clear immediately for snappy UI
       setMessages([]);
       setSuggestions([]);
-      setStreamingContent("");
+      setHistoryError(null);
       setHistoryLoading(true);
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
-      fetch(`/api/chat/history/${sessionId}`, {
-        headers: { Authorization: `Bearer ${jwt}` },
-        signal: controller.signal
-      })
-        .then(res => res.json())
-        .then(data => {
-          // Only update if this is still the active session and not actively sending
-          if (activeSessionRef.current === sessionId && data.messages && !isSendingRef.current) {
-            setMessages(data.messages.map((m: any) => ({
+      getSessionMessagesConvex(sessionId)
+        .then(entries => {
+          if (controller.signal.aborted) return;
+          if (activeSessionRef.current === sessionId && !isSendingRef.current) {
+            setMessages(entries.map(m => ({
               role: m.role,
               content: m.content,
-              timestamp: new Date()
+              timestamp: new Date(m.createdAt),
             })));
+            setHistoryError(null);
           }
         })
         .catch(err => {
-          if (err.name !== 'AbortError') {
-            console.error(err);
+          if (controller.signal.aborted) return;
+          console.error(err);
+          if (activeSessionRef.current === sessionId) {
+            setMessages([]);
+            setHistoryError("We couldn't load this chat history. Try refreshing or start a new chat.");
           }
         })
         .finally(() => {
-          if (activeSessionRef.current === sessionId) {
-            setHistoryLoading(false);
-          }
+          if (activeSessionRef.current === sessionId) setHistoryLoading(false);
         });
     } else {
-      // New chat - reset to initial state
       setMessages([]);
-      setSuggestions(["What can I do with my major?", "Am I on track to graduate?", "Show me my degree progress"]);
-      setStreamingContent("");
+      setSuggestions(DEFAULT_SUGGESTIONS);
+      setHistoryError(null);
       setHistoryLoading(false);
     }
   }, [sessionId, jwt]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, streamingContent, scrollToBottom]);
+  }, [messages, scrollToBottom]);
 
   const handleSend = async (e?: React.FormEvent, msgOverride?: string) => {
     e?.preventDefault();
@@ -114,96 +114,36 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
     if (!textToSend.trim() || !jwt || loading) return;
 
     const userMsg = textToSend.trim();
-    const currentSessionId = sessionId; // Capture current session ID
+    let currentSessionId = sessionId;
 
-    // Mark that we're sending to prevent useEffect from clearing messages
     isSendingRef.current = true;
-
     setInput("");
     setSuggestions([]);
+    setHistoryError(null);
     setMessages(prev => [...prev, { role: "user", content: userMsg, timestamp: new Date() }]);
     setLoading(true);
-    setStreamingContent("");
 
     try {
-      const res = await fetch("/api/chat/explore/stream", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          message: userMsg, 
-          session_id: currentSessionId 
-        }),
+      const response = await sendCurrentExploreMessageConvex({
+        jwt,
+        message: userMsg,
+        ...(currentSessionId ? { sessionId: currentSessionId } : {}),
       });
 
-      if (!res.ok) throw new Error("Failed to send");
-
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
-      let accumulatedContent = "";
-
-      if (!reader) throw new Error("No reader");
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]") {
-               // Finalize
-               if (accumulatedContent) {
-                 // Parse out suggestions if present
-                 const parts = accumulatedContent.split(/\[SUGGESTIONS\]/i);
-                 // Clean content - remove all response markers
-                 let cleanContent = (parts[0] || "")
-                   .replace(/\[RESPONSE START\]/gi, "")
-                   .replace(/\[RESPONSE END\]/gi, "")
-                   .replace(/\[\/RESPONSE\]/gi, "")
-                   .trim();
-                 
-                 setMessages(prev => [...prev, { role: "assistant", content: cleanContent, timestamp: new Date() }]);
-                 setStreamingContent("");
-                 
-                 if (parts[1]) {
-                   const suggs = parts[1].replace(/\[\/SUGGESTIONS\]/gi, "").trim().split("\n").filter(s => s.trim());
-                   setSuggestions(suggs);
-                 }
-               }
-               continue;
-            }
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.type === "chunk") {
-                accumulatedContent += parsed.content;
-                // Display logic - parse out markers for clean display
-                const parts = accumulatedContent.split(/\[SUGGESTIONS\]/i);
-                const displayContent = (parts[0] || "")
-                  .replace(/\[RESPONSE START\]/gi, "")
-                  .replace(/\[RESPONSE END\]/gi, "")
-                  .replace(/\[\/RESPONSE\]/gi, "")
-                  .trim();
-                setStreamingContent(displayContent);
-              } else if (parsed.type === "suggestions" && Array.isArray(parsed.content)) {
-                // Backend sent suggestions as a separate event
-                setSuggestions(parsed.content.slice(0, 3));
-              } else if (parsed.type === "session_id" && parsed.content && !currentSessionId) {
-                // Backend returned a new session ID - sync it up
-                onSessionChange(parsed.content);
-                activeSessionRef.current = parsed.content;
-              }
-            } catch {}
-          }
-        }
+      activeSessionRef.current = response.session.id;
+      if (response.session.id !== currentSessionId) {
+        onSessionChange(response.session.id);
       }
+
+      setMessages(response.messages.map(message => ({
+        role: message.role,
+        content: message.content,
+        timestamp: new Date(message.createdAt),
+      })));
+      setSuggestions(response.suggestions.slice(0, 3));
     } catch (err) {
       console.error(err);
+      setHistoryError(err instanceof Error ? err.message : "Sorry, I encountered an error. Please try again.");
       setMessages(prev => [...prev, { role: "assistant", content: "Sorry, I encountered an error. Please try again.", timestamp: new Date() }]);
     } finally {
       setLoading(false);
@@ -212,20 +152,17 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
   };
 
   const handleNewChat = () => {
-    // Cancel any in-flight requests
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
-    // Clear local state immediately for responsive UI
     setMessages([]);
-    setStreamingContent("");
     setInput("");
     setLoading(false);
     setHistoryLoading(false);
-    setSuggestions(["What can I do with my major?", "Am I on track to graduate?", "Show me my degree progress"]);
+    setHistoryError(null);
+    setSuggestions(DEFAULT_SUGGESTIONS);
     activeSessionRef.current = null;
-    // Then notify parent to clear session ID
     onSessionChange(null);
   };
 
@@ -265,7 +202,13 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
           </div>
         )}
 
-        {!historyLoading && messages.length === 0 && !loading && (
+        {!historyLoading && historyError && (
+          <div className="mx-auto max-w-md rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {historyError}
+          </div>
+        )}
+
+        {!historyLoading && !historyError && messages.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-60 mt-10">
             <div className="bg-brand-50 p-4 rounded-full">
               <FiMessageSquare className="h-8 w-8 text-brand-400" />
@@ -308,19 +251,8 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
             </div>
           </div>
         ))}
-
-        {streamingContent && (
-          <div className="flex w-full justify-start">
-            <div className="max-w-[85%] lg:max-w-[75%] rounded-2xl px-5 py-3.5 text-sm leading-relaxed shadow-sm bg-white border border-slate-100 text-slate-700 rounded-bl-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-sm max-w-none">
-                {streamingContent}
-              </ReactMarkdown>
-              <span className="inline-block w-1.5 h-3.5 ml-1 bg-brand-400 animate-pulse align-middle" />
-            </div>
-          </div>
-        )}
         
-        {loading && !streamingContent && (
+        {loading && (
           <div className="flex w-full justify-start">
              <div className="bg-white border border-slate-100 rounded-2xl rounded-bl-none px-4 py-3 shadow-sm">
                <div className="flex gap-1">

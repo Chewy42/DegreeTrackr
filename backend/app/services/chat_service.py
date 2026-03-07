@@ -119,14 +119,19 @@ def delete_chat_session(user_id: str, session_id: str) -> None:
     belong to the user, it is treated as a no-op.
     """
     # Verify ownership
+    if not session_belongs_to_user(user_id, session_id):
+        return
+
+    supabase_request("DELETE", f"/rest/v1/chat_sessions?id=eq.{session_id}")
+
+
+def session_belongs_to_user(user_id: str, session_id: str) -> bool:
+    """Return whether the chat session belongs to the given user."""
     verify_resp = supabase_request(
         "GET",
         f"/rest/v1/chat_sessions?id=eq.{session_id}&user_id=eq.{user_id}&select=id"
     )
-    if verify_resp.status_code != 200 or not verify_resp.json():
-        return
-
-    supabase_request("DELETE", f"/rest/v1/chat_sessions?id=eq.{session_id}")
+    return verify_resp.status_code == 200 and bool(verify_resp.json())
 
 
 def clear_explore_sessions(user_id: str, keep_session_id: Optional[str] = None) -> int:

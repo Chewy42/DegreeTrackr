@@ -10,6 +10,7 @@ import base64
 import csv
 import json
 import os
+from pathlib import Path
 import random
 import string
 import time
@@ -82,6 +83,12 @@ HEADERS = {
 }
 
 
+def get_output_path() -> Path:
+    """Return the canonical CSV output path under backend/data."""
+    backend_root = Path(__file__).resolve().parents[2]
+    return backend_root / "data" / f"chapman_coursicle_{SEMESTER}.csv"
+
+
 # ============================================================================
 # SCRAPER FUNCTIONS
 # ============================================================================
@@ -135,7 +142,8 @@ def scrape_letter_pages(letter: str) -> Generator[List[Dict[str, Any]], None, No
 
 def scrape_all() -> None:
     """Scrape all classes by querying each letter a-z, saving incrementally."""
-    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scraper_output.csv")
+    filename = get_output_path()
+    filename.parent.mkdir(parents=True, exist_ok=True)
     seen_ids = set()
     fieldnames = None
 
@@ -198,7 +206,7 @@ def scrape_all() -> None:
 
 def main() -> None:
     scrape_all()
-    print(f"\nScraping complete. Data saved to scraper_output.csv")
+    print(f"\nScraping complete. Data saved to {get_output_path()}")
 
 
 if __name__ == "__main__":

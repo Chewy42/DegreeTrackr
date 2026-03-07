@@ -6,6 +6,7 @@ import jwt as pyjwt
 from flask import Blueprint, jsonify, request, send_file
 
 from app.services.auth_tokens import decode_app_token_from_request
+from app.services.pdf_parser import parse_program_evaluation as parse_local_program_evaluation
 from app.services.pdf_parser_llm import parse_program_evaluation
 from app.services.evaluation_service import (
 	upload_evaluation_file,
@@ -15,7 +16,15 @@ from app.services.evaluation_service import (
 	has_program_evaluation,
 	delete_existing_evaluations_for_user,
 )
-from app.services.supabase_client import supabase_request
+from app.services.program_evaluation_store import (
+	has_program_evaluation as has_local_program_evaluation,
+	load_parsed_payload,
+	persist_parsed_payload,
+	parsed_payload_path_for_email,
+	program_evaluation_path_for_email,
+	save_uploaded_pdf,
+)
+from app.services.supabase_client import supabase_configured, supabase_request
 from app.services.chat_service import reset_onboarding_session
 
 program_evaluations_bp = Blueprint("program_evaluations", __name__)
@@ -26,6 +35,15 @@ def _require_email_from_token() -> str:
     if not email:
         raise pyjwt.InvalidTokenError("Invalid token payload")
     return email
+
+
+def _parsed_payload(email: str, filename: str, parsed_data: Dict[str, Any]) -> Dict[str, Any]:
+	return {
+		"email": email,
+		"uploaded_at": datetime.now(timezone.utc).isoformat(),
+		"original_filename": filename,
+		"parsed_data": parsed_data,
+	}
 
 @program_evaluations_bp.route("/program-evaluations", methods=["POST"])
 def upload_program_evaluation():
@@ -46,6 +64,25 @@ def upload_program_evaluation():
 	filename = file.filename
 	if not filename.lower().endswith(".pdf"):
 		return jsonify({"error": "Only PDF files are supported."}), 400
+
+	if not supabase_configured():
+		pdf_path, _size_bytes = save_uploaded_pdf(file, email)
+		parsed_data: Dict[str, Any] = {}
+		try:
+			parsed_data = parse_local_program_evaluation(str(pdf_path))
+		except Exception as exc:
+			print(f"Parsing skipped due to error: {exc}")
+
+		persist_parsed_payload(email, _parsed_payload(email, filename, parsed_data))
+		return jsonify(
+			{
+				"status": "ok",
+				"filename": filename,
+				"parsed": parsed_data,
+				"hasProgramEvaluation": True,
+				"onboardingComplete": False,
+			}
+		), 201
 
 	try:
 		# 0. Get user_id and reset onboarding state
@@ -121,6 +158,13 @@ def get_program_evaluation():
     except Exception:
         return jsonify({"error": "Unauthorized"}), 401
 
+    if not supabase_configured():
+        pdf_path = program_evaluation_path_for_email(email)
+        if not pdf_path.exists():
+            return jsonify({"error": "No program evaluation on file."}), 404
+
+        return send_file(pdf_path, mimetype="application/pdf")
+
     file_bytes = get_evaluation_file(email)
     if not file_bytes:
         return jsonify({"error": "No program evaluation on file."}), 404
@@ -142,6 +186,23 @@ def get_parsed_program_evaluation():
     except Exception:
         return jsonify({"error": "Unauthorized"}), 401
 
+    if not supabase_configured():
+        payload = load_parsed_payload(email)
+        if not payload and has_local_program_evaluation(email):
+            pdf_path = program_evaluation_path_for_email(email)
+            parsed_data: Dict[str, Any] = {}
+            try:
+                parsed_data = parse_local_program_evaluation(str(pdf_path))
+            except Exception as exc:
+                print(f"Parsing skipped due to error: {exc}")
+            payload = _parsed_payload(email, pdf_path.name, parsed_data)
+            persist_parsed_payload(email, payload)
+
+        if not payload:
+            return jsonify({"error": "No parsed evaluation found."}), 404
+
+        return jsonify(payload), 200
+
     payload = load_parsed_data(email)
     if not payload:
         return jsonify({"error": "No parsed evaluation found."}), 404
@@ -157,6 +218,15 @@ def delete_program_evaluation():
         return jsonify({"error": "Token expired"}), 401
     except Exception:
         return jsonify({"error": "Unauthorized"}), 401
+
+    if not supabase_configured():
+        pdf_path = program_evaluation_path_for_email(email)
+        parsed_path = parsed_payload_path_for_email(email)
+        if pdf_path.exists():
+            pdf_path.unlink()
+        if parsed_path.exists():
+            parsed_path.unlink()
+        return jsonify({"status": "ok"}), 200
 
     # Get user ID
     user_resp = supabase_request("GET", f"/rest/v1/app_users?email=eq.{email}&select=id")

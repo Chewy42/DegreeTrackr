@@ -1,5 +1,11 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../../auth/AuthContext";
+import {
+  convexApi,
+  getConvexClient,
+  syncCurrentProgramEvaluationFromLegacy,
+  type ProgramEvaluationPayload,
+} from '../../lib/convex'
 import DegreeProgressCard from "./DegreeProgressCard";
 import CreditBreakdownChart from "./CreditBreakdownChart";
 import GPATrendChart from "./GPATrendChart";
@@ -62,6 +68,7 @@ function formatGPA(value: number | undefined, otherValue?: number): string {
 }
 
 export interface ParsedData {
+  [key: string]: unknown;
   student_info?: StudentInfo;
   gpa?: GPA;
   courses?: {
@@ -73,17 +80,14 @@ export interface ParsedData {
   mastery_demonstration?: { type?: string };
 }
 
-export interface ProgressData {
+export interface ProgressData extends ProgramEvaluationPayload {
   parsed_data?: ParsedData;
-  email?: string;
-  uploaded_at?: string;
-  original_filename?: string;
 }
 
 type LoadState = "idle" | "loading" | "ready" | "empty" | "error";
 
 export default function ProgressPage() {
-  const { jwt } = useAuth();
+  const { jwt, preferences } = useAuth();
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [data, setData] = useState<ProgressData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -94,32 +98,35 @@ export default function ProgressPage() {
     setError(null);
 
     try {
-      const res = await fetch("/api/program-evaluations/parsed", {
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-          Accept: "application/json",
-        },
-      });
+      const convexClient = getConvexClient();
+      if (!convexClient) {
+        return;
+      }
 
-      if (res.status === 404) {
+      const nextData =
+        (await convexClient.query(convexApi.evaluations.getCurrentProgramEvaluation, {})) ??
+        (preferences.hasProgramEvaluation
+          ? await syncCurrentProgramEvaluationFromLegacy({
+              jwt,
+              hydrateProgramEvaluation: (args) =>
+                convexClient.action(convexApi.evaluations.hydrateCurrentProgramEvaluationFromLegacy, args),
+            })
+          : null);
+
+      if (!nextData) {
         setData(null);
         setLoadState("empty");
         return;
       }
 
-      if (!res.ok) {
-        throw new Error("Unable to load progress data.");
-      }
-
-      const responseData = await res.json();
-      setData(responseData);
+      setData(nextData as ProgressData);
       setLoadState("ready");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to load progress data.";
       setError(message);
       setLoadState("error");
     }
-  }, [jwt]);
+  }, [jwt, preferences.hasProgramEvaluation]);
 
   useEffect(() => {
     fetchProgress();
@@ -211,7 +218,7 @@ export default function ProgressPage() {
             {studentInfo?.name ? `${studentInfo.name.split(",").reverse().join(" ").trim()}'s Progress` : "Your Progress"}
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            {studentInfo?.program || "Computer Science"} 
+	            {studentInfo?.program || "Program information unavailable"}
             {studentInfo?.expected_graduation && ` • Expected Graduation: ${studentInfo.expected_graduation}`}
           </p>
         </div>

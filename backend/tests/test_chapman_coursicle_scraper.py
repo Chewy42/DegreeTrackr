@@ -32,6 +32,33 @@ class ChapmanCoursicleScraperTests(unittest.TestCase):
         self.assertEqual(len(pages), 2)
         self.assertEqual(offsets, [0, scrape_chapman_coursicle.COUNT, scrape_chapman_coursicle.COUNT * 2, scrape_chapman_coursicle.COUNT * 3])
 
+    def test_scrape_letter_pages_can_continue_past_four_pages(self) -> None:
+        offsets: list[int] = []
+
+        def fake_fetch_page(offset: int, query: str = ""):
+            offsets.append(offset)
+            if len(offsets) <= 5:
+                return [{"class": f"TEST {len(offsets)}"}]
+            return []
+
+        with patch.object(scrape_chapman_coursicle, "fetch_page", side_effect=fake_fetch_page), \
+             patch.object(scrape_chapman_coursicle.time, "sleep", return_value=None):
+            pages = list(scrape_chapman_coursicle.scrape_letter_pages("a"))
+
+        self.assertEqual(len(pages), 5)
+        self.assertEqual(
+            offsets,
+            [
+                0,
+                scrape_chapman_coursicle.COUNT,
+                scrape_chapman_coursicle.COUNT * 2,
+                scrape_chapman_coursicle.COUNT * 3,
+                scrape_chapman_coursicle.COUNT * 4,
+                scrape_chapman_coursicle.COUNT * 5,
+                scrape_chapman_coursicle.COUNT * 6,
+            ],
+        )
+
     def test_sync_app_data_skips_smaller_scrape_output(self) -> None:
         with TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)

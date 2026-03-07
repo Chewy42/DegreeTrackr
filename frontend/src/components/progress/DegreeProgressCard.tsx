@@ -29,6 +29,9 @@ export default function DegreeProgressCard({
   };
 
   const progressColor = getProgressColor(progress);
+	const inProgressPercent = totalCredits > 0 ? (inProgressCredits / totalCredits) * 100 : 0;
+	const totalProgressPercent = Math.min(progress + inProgressPercent, 100);
+	const earnedShare = totalProgressPercent > 0 ? (progress / totalProgressPercent) * 100 : 100;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-all duration-300 group">
@@ -104,8 +107,8 @@ export default function DegreeProgressCard({
           <div
             className="h-full rounded-full transition-all duration-1000 ease-out"
             style={{
-              width: `${Math.min(progress + (inProgressCredits / totalCredits) * 100, 100)}%`,
-              background: `linear-gradient(90deg, ${progressColor} ${(progress / (progress + (inProgressCredits / totalCredits) * 100)) * 100}%, #93c5fd ${(progress / (progress + (inProgressCredits / totalCredits) * 100)) * 100}%)`,
+	              width: `${totalProgressPercent}%`,
+	              background: `linear-gradient(90deg, ${progressColor} ${earnedShare}%, #93c5fd ${earnedShare}%)`,
             }}
           />
         </div>

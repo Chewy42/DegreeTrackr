@@ -216,7 +216,7 @@ def scrape_letter_pages(letter: str) -> Generator[List[Dict[str, Any]], None, No
     """Yield pages of results for a single letter query."""
     offset = 0
     consecutive_empty_pages = 0
-    while offset < 100:
+    while True:
         try:
             page = fetch_page(offset, letter)
         except Exception as e:

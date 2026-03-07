@@ -65,4 +65,17 @@ export default defineSchema({
     content: v.string(),
     createdAt: v.number(),
   }).index('by_sessionId_and_createdAt', ['sessionId', 'createdAt']),
+
+  // ── Program evaluations ────────────────────────────────────────────────────
+  programEvaluations: defineTable({
+    userId: v.id('userProfiles'),
+    email: v.optional(v.string()),
+    uploadedAt: v.optional(v.number()),
+    originalFilename: v.optional(v.string()),
+    parsedData: v.optional(v.any()),
+    storagePath: v.optional(v.string()),
+    mimeType: v.optional(v.string()),
+    fileSizeBytes: v.optional(v.number()),
+    migrationSource,
+  }).index('by_userId', ['userId']),
 })

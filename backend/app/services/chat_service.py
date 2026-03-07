@@ -10,11 +10,18 @@ from openai import OpenAI
 from app.services.supabase_client import supabase_request
 from app.services.evaluation_service import load_parsed_data
 
-# Initialize OpenAI Client
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-    base_url=os.getenv("OPENAI_BASE_URL")
-)
+def _build_openai_client() -> Optional[OpenAI]:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+
+    return OpenAI(
+        api_key=api_key,
+        base_url=os.getenv("OPENAI_BASE_URL")
+    )
+
+
+client = _build_openai_client()
 MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
 
 _CATALOG_CACHE: Optional[List[Dict[str, Any]]] = None
@@ -1026,7 +1033,7 @@ Suggestions should be short, tappable phrases (under 40 characters) that help co
         return reply_text_local, suggestions_local[:3]
 
     try:
-        if not client.api_key:
+        if client is None:
             reply_text = "I'm ready to help, but my configuration needs attention."
             suggestions: List[str] = ["Plan my next semester", "Show my degree progress", "What courses do I need?"]
         else:
@@ -1181,7 +1188,7 @@ Suggestions should be short, tappable phrases (under 40 characters) that help co
     suggestions: List[str] = []
     
     try:
-        if not client.api_key:
+        if client is None:
             yield {"type": "chunk", "content": "I'm ready to help, but my configuration needs attention."}
             yield {"type": "suggestions", "content": ["Plan my next semester", "Show my degree progress", "What courses do I need?"]}
             return

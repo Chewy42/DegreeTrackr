@@ -1,6 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useAuth as useClerkAuth, useClerk } from '@clerk/react'
+import { useQuery } from 'convex/react'
 import { buildClerkRedirectUrls, extractClerkErrorMessage } from './clerkAuth'
+import { convexApi } from '../lib/convex/api'
+import { isConvexFeatureEnabled } from '../lib/convex/config'
 
 export type AuthMode = 'sign_in' | 'sign_up'
 
@@ -164,6 +167,11 @@ export function AuthProvider({ children }: Props) {
   const [jwt, setJwt] = useState<string | null>(null)
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
 
+  const convexUserPrefs = useQuery(
+    convexApi.profile.getCurrentUserPreferences,
+    isConvexFeatureEnabled() ? {} : 'skip'
+  )
+
   const persistJwt = useCallback((token: string | null) => {
     setJwt(token)
     if (typeof window === 'undefined') {
@@ -287,8 +295,17 @@ export function AuthProvider({ children }: Props) {
     })
   }, [])
 
+  useEffect(() => {
+    if (convexUserPrefs != null) {
+      persistPreferences(convexUserPrefs as UserPreferences)
+    }
+  }, [convexUserPrefs, persistPreferences])
+
   const refreshPreferences = useCallback(async () => {
     if (!jwt) return
+
+    // If Convex already has preferences, skip the Flask fetch
+    if (convexUserPrefs != null) return
 
     const attemptFetch = async (): Promise<Response> => {
       return await fetch('/api/auth/preferences', {
@@ -353,7 +370,7 @@ export function AuthProvider({ children }: Props) {
     } catch (err) {
       console.error('Failed to refresh preferences, using cached:', err)
     }
-  }, [finalizeAuthenticatedSession, isSignedIn, jwt, persistPreferences, signOut])
+  }, [convexUserPrefs, finalizeAuthenticatedSession, isSignedIn, jwt, persistPreferences, signOut])
 
   useEffect(() => {
     if (jwt && sessionState === 'authenticated') {

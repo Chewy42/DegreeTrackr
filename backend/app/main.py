@@ -17,6 +17,7 @@ from app.routes.evaluations_v2 import program_evaluations_bp
 from app.routes.chat import chat_bp
 from app.routes.schedule import schedule_bp
 from app.services.auth_tokens import decode_app_token_from_request, issue_app_token
+from app.services.clerk_auth import ClerkAuthError, ClerkConfigurationError, get_authenticated_clerk_email
 from app.services.evaluation_service import has_program_evaluation
 from app.services.supabase_client import supabase_request
 
@@ -158,6 +159,32 @@ def _get_redirect_url() -> str:
     return url
 
 
+def ensure_app_user_record(email: str) -> None:
+    user_resp = supabase_request("GET", f"/rest/v1/app_users?email=eq.{email}&select=id")
+    if user_resp.status_code == 200 and user_resp.json():
+        return
+
+    create_resp = supabase_request(
+        "POST",
+        "/rest/v1/app_users",
+        json={
+            "email": email,
+            "password_hash": "managed_by_clerk_auth",
+            "password_salt": "managed_by_clerk_auth",
+            "is_email_verified": True,
+        },
+        headers={"Prefer": "return=representation"},
+    )
+
+    if create_resp.status_code >= 400:
+        print(f"Failed to create app_user for Clerk auth: {create_resp.text}")
+        return
+
+    if create_resp.status_code in (200, 201) and create_resp.json():
+        new_user_id = create_resp.json()[0]['id']
+        supabase_request("POST", "/rest/v1/user_preferences", json={"user_id": new_user_id})
+
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'ok', 'timestamp': datetime.utcnow().isoformat()}), 200
@@ -175,6 +202,32 @@ def health_config():
         'jwt_secret_is_default': os.getenv("JWT_SECRET_KEY", "dev-secret-key-change-in-production") == "dev-secret-key-change-in-production",
         'debug_mode': os.getenv('DEBUG', 'true').lower() == 'true',
     }), 200
+
+
+@app.route('/auth/clerk/session', methods=['POST'])
+def create_clerk_session():
+    try:
+        data = request.get_json(silent=True) or {}
+        stay_logged_in = bool(data.get('stayLoggedIn'))
+        email = get_authenticated_clerk_email(request.headers.get('Authorization', ''))
+
+        if not email.endswith('@chapman.edu'):
+            return jsonify({'error': 'Use your @chapman.edu Google account to continue.'}), 403
+
+        ensure_app_user_record(email)
+
+        token = issue_app_token(email, stay_logged_in)
+        return jsonify({
+            'token': token,
+            'user': {'email': email},
+            'preferences': build_preferences(email),
+        }), 200
+    except ClerkConfigurationError as config_err:
+        return jsonify({'error': str(config_err)}), 500
+    except ClerkAuthError as auth_err:
+        return jsonify({'error': str(auth_err)}), 401
+    except requests.RequestException:
+        return jsonify({'error': 'Unable to reach Clerk authentication service.'}), 502
 
 @app.route('/auth/sign-up', methods=['POST'])
 def sign_up():

@@ -42,6 +42,17 @@ export type SyncedChatMessage = {
   createdAt: number
 }
 
+export type ScheduleSnapshotResult = {
+  id: string
+  userId: string
+  name: string
+  classIds: string[]
+  totalCredits: number
+  classCount: number
+  createdAt: number
+  migrationSource: 'convex'
+}
+
 export type SendCurrentExploreMessageResult = {
   session: SyncedChatSession
   messages: SyncedChatMessage[]
@@ -147,5 +158,22 @@ export const convexApi = {
       { jwt: string; apiBaseUrl: string; message: string; sessionId?: string },
       SendCurrentExploreMessageResult
     >('chat:sendCurrentExploreMessage'),
+  },
+  scheduleSnapshots: {
+    listCurrentScheduleSnapshots: makeFunctionReference<
+      'query',
+      NoArgs,
+      ScheduleSnapshotResult[]
+    >('scheduleSnapshots:listCurrentScheduleSnapshots'),
+    createCurrentScheduleSnapshot: makeFunctionReference<
+      'mutation',
+      { name: string; classIds: string[]; totalCredits: number },
+      ScheduleSnapshotResult
+    >('scheduleSnapshots:createCurrentScheduleSnapshot'),
+    deleteCurrentScheduleSnapshot: makeFunctionReference<
+      'mutation',
+      { id: string },
+      void
+    >('scheduleSnapshots:deleteCurrentScheduleSnapshot'),
   },
 } as const

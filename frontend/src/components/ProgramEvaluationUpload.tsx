@@ -171,9 +171,9 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 				<div className="relative rounded-3xl overflow-hidden">
 					{/* Loading Overlay */}
 					{isUploading && (
-							<div className="absolute inset-0 z-10 bg-white/70 backdrop-blur-[2px] flex flex-col items-center justify-center">
+							<div role="status" aria-live="polite" className="absolute inset-0 z-10 bg-white/70 backdrop-blur-[2px] flex flex-col items-center justify-center">
 								<div className="bg-white px-8 py-7 sm:px-10 sm:py-8 rounded-2xl shadow-xl border border-slate-100 flex flex-col items-center text-center max-w-md sm:max-w-lg mx-auto">
-									<div className="relative w-16 h-16 sm:w-20 sm:h-20 mb-5">
+									<div className="relative w-16 h-16 sm:w-20 sm:h-20 mb-5" aria-hidden="true">
 										<div className="absolute inset-0 border-4 border-blue-100 rounded-full" />
 										<div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin" />
 										<FiUploadCloud className="absolute inset-0 m-auto text-blue-600 w-6 h-6 sm:w-7 sm:h-7" />
@@ -189,6 +189,10 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 				)}
 
 				<div
+					role="button"
+					tabIndex={isUploading ? -1 : 0}
+					aria-disabled={isUploading}
+					aria-label="Upload your program evaluation PDF"
 					className={[
 						"flex flex-col items-center justify-center rounded-3xl border-3 border-dashed px-8 py-16 sm:px-12 sm:py-20 transition-all duration-200",
 						isUploading
@@ -200,6 +204,16 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 					onDrop={isUploading ? undefined : handleDrop}
 					onDragOver={isUploading ? undefined : handleDragOver}
 					onDragLeave={isUploading ? undefined : handleDragLeave}
+					onKeyDown={(event) => {
+						if (isUploading) return;
+						if (event.key === 'Enter' || event.key === ' ') {
+							event.preventDefault();
+							const input = document.getElementById(
+								"program-evaluation-file-input"
+							) as HTMLInputElement | null;
+							if (input) input.click();
+						}
+					}}
 					onClick={() => {
 						if (isUploading) return;
 						const input = document.getElementById(

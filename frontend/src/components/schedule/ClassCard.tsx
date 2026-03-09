@@ -78,8 +78,9 @@ export default function ClassCard({
               disabled={disabled}
               className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition-colors cursor-pointer"
               title="Remove from schedule"
+              aria-label={`Remove ${code} from schedule`}
             >
-              <FiTrash2 className="w-4 h-4" />
+              <FiTrash2 className="w-4 h-4" aria-hidden="true" />
             </button>
           ) : (
             <button
@@ -96,8 +97,10 @@ export default function ClassCard({
                 }
               `}
               title={conflictMessage || "Add to schedule"}
+              aria-label={conflictMessage ? `Cannot add ${code}: ${conflictMessage}` : `Add ${code} to schedule`}
+              aria-disabled={disabled || !!conflictMessage}
             >
-              <FiPlus className="w-4 h-4" />
+              <FiPlus className="w-4 h-4" aria-hidden="true" />
             </button>
           )}
         </div>

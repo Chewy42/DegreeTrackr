@@ -115,10 +115,11 @@ export default function ClassSearchSidebar({
       </div>
 
       {/* Results List */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3" role="region" aria-label="Class search results" aria-live="polite" aria-busy={loading}>
         {loading ? (
-          <div className="flex justify-center py-8 text-slate-400">
-            <FiLoader className="w-6 h-6 animate-spin" />
+          <div className="flex justify-center py-8 text-slate-400" role="status">
+            <FiLoader className="w-6 h-6 animate-spin" aria-hidden="true" />
+            <span className="sr-only">Searching for classes…</span>
           </div>
         ) : error ? (
           <div className="text-center py-8 text-red-500 text-sm">

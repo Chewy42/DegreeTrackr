@@ -243,7 +243,7 @@ export default function RequirementsChecklist({ requirements }: RequirementsChec
       {/* Requirements list */}
       <div className="space-y-2 max-h-80 overflow-y-auto pr-1 custom-scrollbar">
         {filteredRequirements.length === 0 ? (
-          <div className="text-center py-8 text-slate-400 text-sm">
+          <div role="status" aria-live="polite" className="text-center py-8 text-slate-400 text-sm">
             {filter === "complete" ? "No completed requirements yet" : 
              filter === "incomplete" ? "All requirements complete! 🎉" : 
              "No requirements found"}

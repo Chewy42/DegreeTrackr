@@ -40,13 +40,17 @@ export default function ScheduleBuilder() {
 	const [snapshotsLoading, setSnapshotsLoading] = useState(false);
 	const [snapshotSaving, setSnapshotSaving] = useState(false);
 	const [snapshotError, setSnapshotError] = useState<string | null>(null);
+  const [requirementsError, setRequirementsError] = useState<string | null>(null);
 
   // Load user requirements on mount
   useEffect(() => {
     if (jwt) {
       getUserRequirements(jwt)
         .then(setBaseRequirements)
-        .catch(console.error);
+        .catch((err) => {
+          console.error('Failed to load degree requirements:', err);
+          setRequirementsError('Could not load your degree requirements. Schedule suggestions may be incomplete.');
+        });
     }
   }, [jwt]);
 
@@ -322,6 +326,24 @@ export default function ScheduleBuilder() {
             <p className="text-slate-500 text-sm">
               Analyzing your requirements, preferences, and available classes to build the perfect schedule...
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Requirements load error */}
+      {requirementsError && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top duration-300">
+          <div role="alert" aria-live="assertive" className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 max-w-md">
+            <FiInfo className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+            <span className="text-sm">{requirementsError}</span>
+            <button
+              type="button"
+              onClick={() => setRequirementsError(null)}
+              aria-label="Dismiss warning"
+              className="ml-2 text-amber-600 hover:text-amber-800 font-bold"
+            >
+              ×
+            </button>
           </div>
         </div>
       )}

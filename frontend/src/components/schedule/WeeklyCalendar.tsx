@@ -79,7 +79,16 @@ export default function WeeklyCalendar({ classes, onRemoveClass }: WeeklyCalenda
 	  const pixelsPerMinute = hourHeight / 60;
 
 		  return (
-		    <div className="flex flex-col h-full min-h-0 bg-white overflow-hidden">
+		    <div className="flex flex-col h-full min-h-0 bg-white overflow-hidden relative">
+	      {/* Empty state overlay */}
+	      {scheduledClasses.length === 0 && (
+	        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-white/80 backdrop-blur-sm pointer-events-none">
+	          <p className="text-base font-semibold text-slate-600">No classes added yet</p>
+	          <p className="text-sm text-slate-400 text-center max-w-xs px-4">
+	            Search for classes in the sidebar and add them to build your schedule.
+	          </p>
+	        </div>
+	      )}
 	      {/* Scrollable Container */}
 	      <div ref={scrollContainerRef} className="flex-1 overflow-auto relative">
         <div className="min-w-[600px] flex flex-col"> {/* Min width to force horizontal scroll on small screens */}

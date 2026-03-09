@@ -55,9 +55,11 @@ function RequirementItem({ requirement, index }: RequirementItemProps) {
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full px-4 py-3 flex items-center gap-3"
+        aria-expanded={isExpanded}
+        aria-label={`${requirement.label} — ${status.label}, ${requirement.earned.toFixed(0)} of ${requirement.required.toFixed(0)} credits`}
       >
         {/* Status icon */}
-        <div className={`flex-shrink-0 w-8 h-8 rounded-full ${status.bg} flex items-center justify-center`}>
+        <div className={`flex-shrink-0 w-8 h-8 rounded-full ${status.bg} flex items-center justify-center`} aria-hidden="true">
           <StatusIcon className={`text-sm ${status.color}`} />
         </div>
 
@@ -67,13 +69,20 @@ function RequirementItem({ requirement, index }: RequirementItemProps) {
             <span className="text-sm font-medium text-slate-800 truncate">
               {requirement.label}
             </span>
-            <span className="text-xs font-medium text-slate-600 flex-shrink-0">
+            <span className="text-xs font-medium text-slate-600 flex-shrink-0" aria-hidden="true">
               {requirement.earned.toFixed(0)}/{requirement.required.toFixed(0)}
             </span>
           </div>
           
           {/* Progress bar */}
-          <div className="mt-2 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+          <div
+            className="mt-2 h-1.5 bg-slate-200 rounded-full overflow-hidden"
+            role="progressbar"
+            aria-valuenow={Math.round(progress)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${requirement.label} progress`}
+          >
             <div className="h-full flex">
               <div
                 className={`${getProgressColor()} transition-all duration-500`}
@@ -90,7 +99,7 @@ function RequirementItem({ requirement, index }: RequirementItemProps) {
         </div>
 
         {/* Expand icon */}
-        <div className="flex-shrink-0 text-slate-400">
+        <div className="flex-shrink-0 text-slate-400" aria-hidden="true">
           {isExpanded ? <FiChevronUp /> : <FiChevronDown />}
         </div>
       </button>

@@ -103,7 +103,14 @@ export default function DegreeProgressCard({
 
       {/* Progress bar underneath */}
       <div className="mt-4 pt-3 border-t border-slate-100">
-        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div
+          className="h-2 bg-slate-100 rounded-full overflow-hidden"
+          role="progressbar"
+          aria-valuenow={Math.round(totalProgressPercent)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`Degree progress: ${Math.round(totalProgressPercent)}%`}
+        >
           <div
             className="h-full rounded-full transition-all duration-1000 ease-out"
             style={{

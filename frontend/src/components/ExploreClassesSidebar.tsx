@@ -112,7 +112,7 @@ export default function ExploreClassesSidebar() {
         ))}
 
         {!loading && !error && filtered.length === 0 && classes.length > 0 && (
-          <div className="text-[11px] text-slate-400 text-center mt-6">
+          <div role="status" aria-live="polite" className="text-[11px] text-slate-400 text-center mt-6">
             No matching classes found.
           </div>
         )}

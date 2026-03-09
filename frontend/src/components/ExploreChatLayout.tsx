@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import ExploreChat from "./ExploreChat";
 import ChatHistorySidebar from "./ChatHistorySidebar";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 export default function ExploreChatLayout() {
+  usePageTitle("Explore");
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
   return (

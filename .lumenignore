@@ -1,0 +1,4 @@
+backend/data/
+backend/tmp/
+attached_assets/
+convex/_generated/

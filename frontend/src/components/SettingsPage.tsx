@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { FiLogOut, FiCheck, FiRefreshCw, FiSettings, FiAlertCircle } from "react-icons/fi";
 import { useMutation, useQuery } from "convex/react";
 import { useAuth } from "../auth/AuthContext";
@@ -82,6 +83,7 @@ const PREFERENCE_CONFIGS: PreferenceConfig[] = [
 ];
 
 export default function SettingsPage() {
+  usePageTitle("Settings");
   const { signOut, jwt } = useAuth();
   const [preferences, setPreferences] = useState<SchedulingPreferences>({});
   const [loadState, setLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");

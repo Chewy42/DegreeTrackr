@@ -17,9 +17,11 @@ import WarningModal from './WarningModal';
 import ScheduleImpactModal from './ScheduleImpactModal';
 import SnapshotManagerModal from './SnapshotManagerModal';
 import { useAuth } from '../../auth/AuthContext';
+import { usePageTitle } from '../../hooks/usePageTitle';
 import { FiTrendingUp, FiCpu, FiLoader, FiSave } from 'react-icons/fi';
 
 export default function ScheduleBuilder() {
+  usePageTitle("Schedule Builder");
   const { jwt } = useAuth();
   const [scheduledClasses, setScheduledClasses] = useState<ScheduledClass[]>([]);
   const [validation, setValidation] = useState<ScheduleValidation>({

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAuth } from "../../auth/AuthContext";
 import {
   convexApi,
@@ -87,6 +88,7 @@ export interface ProgressData extends ProgramEvaluationPayload {
 type LoadState = "idle" | "loading" | "ready" | "empty" | "error";
 
 export default function ProgressPage() {
+  usePageTitle("Progress");
   const { jwt, preferences } = useAuth();
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [data, setData] = useState<ProgressData | null>(null);

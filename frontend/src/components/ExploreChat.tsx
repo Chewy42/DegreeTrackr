@@ -256,8 +256,9 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
         
         {loading && (
           <div className="flex w-full justify-start">
-             <div className="bg-white border border-slate-100 rounded-2xl rounded-bl-none px-4 py-3 shadow-sm">
-               <div className="flex gap-1">
+             <div role="status" aria-live="polite" className="bg-white border border-slate-100 rounded-2xl rounded-bl-none px-4 py-3 shadow-sm">
+               <span className="sr-only">AI advisor is responding</span>
+               <div className="flex gap-1" aria-hidden="true">
                  <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                  <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                  <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />

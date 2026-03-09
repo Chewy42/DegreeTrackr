@@ -23,14 +23,17 @@ export default function AuthInput({
 	autoComplete,
 	name,
 }: Props) {
+	const inputId = name ?? label.toLowerCase().replace(/\s+/g, "-");
+
 	return (
 		<div className="group">
-			<label className="block text-[10px] font-medium text-slate-400 mb-1">
+			<label htmlFor={inputId} className="block text-[10px] font-medium text-slate-400 mb-1">
 				{label}
 			</label>
 			<div className="flex items-center gap-2 px-3 py-2.5 rounded-2xl border border-slate-800 bg-slate-950/80 transition-all group-hover:border-emerald-500/80 group-hover:bg-slate-900/90 cursor-text shadow-sm">
-				{icon}
+				{icon ? <span aria-hidden="true">{icon}</span> : null}
 				<input
+					id={inputId}
 					name={name}
 					type={type}
 					required={required}

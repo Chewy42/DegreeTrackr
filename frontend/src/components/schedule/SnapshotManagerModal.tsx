@@ -118,7 +118,7 @@ export default function SnapshotManagerModal({
 
         <div className="px-4 pb-4 overflow-y-auto flex-1">
           {snapshots.length === 0 && !loading ? (
-            <div className="text-xs text-slate-500 text-center py-6">
+            <div role="status" aria-live="polite" className="text-xs text-slate-500 text-center py-6">
               No snapshots yet. Create your first snapshot using the form above.
             </div>
           ) : (

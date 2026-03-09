@@ -182,16 +182,17 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
           </p>
         </div>
         <button
+          type="button"
           onClick={handleNewChat}
           className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
         >
-          <FiPlus className="h-3.5 w-3.5" />
+          <FiPlus className="h-3.5 w-3.5" aria-hidden="true" />
           New Chat
         </button>
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth" ref={scrollRef}>
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth" ref={scrollRef} aria-live="polite" aria-label="Conversation" role="log">
         {historyLoading && (
           <div className="flex items-center justify-center h-full">
             <div className="flex gap-1">
@@ -272,6 +273,7 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
             {suggestions.map((s, i) => (
               <button
                 key={i}
+                type="button"
                 onClick={() => handleSend(undefined, s)}
                 className="text-xs bg-brand-50 text-brand-700 px-3 py-1.5 rounded-full hover:bg-brand-100 transition-colors border border-brand-100"
               >
@@ -291,15 +293,17 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about your academic journey..."
+            aria-label="Message to AI advisor"
 	            className="flex-1 bg-transparent border-none outline-none focus:outline-none focus-visible:outline-none focus:ring-0 text-sm text-slate-800 placeholder:text-slate-400 px-2"
             disabled={loading}
           />
           <button
             type="submit"
             disabled={!input.trim() || loading}
+            aria-label="Send message"
             className="p-2 bg-gradient-to-r from-brand-600 to-brand-500 text-white rounded-lg hover:from-brand-600 hover:to-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
-            <FiSend className="h-4 w-4" />
+            <FiSend className="h-4 w-4" aria-hidden="true" />
           </button>
         </form>
       </div>

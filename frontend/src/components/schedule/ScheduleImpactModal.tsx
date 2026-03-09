@@ -67,19 +67,30 @@ export default function ScheduleImpactModal({
   }, [scheduledClasses, baseRequirements]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[85vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="schedule-impact-modal-title"
+        className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[85vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <div className="flex items-center gap-2 text-blue-600">
-            <FiTrendingUp className="w-5 h-5" />
-            <h3 className="font-semibold text-lg">Projected Progress</h3>
+            <FiTrendingUp className="w-5 h-5" aria-hidden="true" />
+            <h3 id="schedule-impact-modal-title" className="font-semibold text-lg">Projected Progress</h3>
           </div>
-          <button 
+          <button
+            type="button"
             onClick={onClose}
+            aria-label="Close"
             className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-100 rounded-lg"
           >
-            <FiX className="w-5 h-5" />
+            <FiX className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
         
@@ -165,6 +176,7 @@ export default function ScheduleImpactModal({
         {/* Footer */}
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
           <button
+            type="button"
             onClick={onClose}
             className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors text-sm"
           >

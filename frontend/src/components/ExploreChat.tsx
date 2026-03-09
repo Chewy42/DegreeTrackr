@@ -194,8 +194,9 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth" ref={scrollRef} aria-live="polite" aria-label="Conversation" role="log">
         {historyLoading && (
-          <div className="flex items-center justify-center h-full">
-            <div className="flex gap-1">
+          <div role="status" aria-live="polite" className="flex items-center justify-center h-full">
+            <span className="sr-only">Loading chat history</span>
+            <div className="flex gap-1" aria-hidden="true">
               <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
               <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
               <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -204,14 +205,14 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
         )}
 
         {!historyLoading && historyError && (
-          <div className="mx-auto max-w-md rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div role="alert" aria-live="assertive" className="mx-auto max-w-md rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             {historyError}
           </div>
         )}
 
         {!historyLoading && !historyError && messages.length === 0 && !loading && (
-          <div className="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-60 mt-10">
-            <div className="bg-brand-50 p-4 rounded-full">
+          <div role="status" aria-live="polite" className="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-60 mt-10">
+            <div className="bg-brand-50 p-4 rounded-full" aria-hidden="true">
               <FiMessageSquare className="h-8 w-8 text-brand-400" />
             </div>
             <div className="max-w-xs">

@@ -86,9 +86,9 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       return (
         <div className="min-h-screen flex items-center justify-center bg-surface-muted text-text-primary px-4 py-6">
           <div className="w-full max-w-xl mx-auto">
-            <div className="relative bg-surface rounded-[2rem] shadow-card border border-slate-100/70">
+            <div role="alert" aria-live="assertive" className="relative bg-surface rounded-[2rem] shadow-card border border-slate-100/70">
               <div className="px-6 pt-10 pb-8 sm:px-12 sm:pt-12 text-center">
-                <div className="mb-6">
+                <div className="mb-6" aria-hidden="true">
                   <svg
                     className="w-16 h-16 mx-auto text-danger"
                     fill="none"

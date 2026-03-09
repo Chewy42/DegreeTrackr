@@ -268,7 +268,7 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 					</button>
 				</div>
 				{error ? (
-					<div className="mt-3 text-sm sm:text-base text-danger font-medium text-center bg-red-50 p-3 rounded-lg">
+					<div role="alert" aria-live="assertive" className="mt-3 text-sm sm:text-base text-danger font-medium text-center bg-red-50 p-3 rounded-lg">
 						{error}
 					</div>
 				) : null}

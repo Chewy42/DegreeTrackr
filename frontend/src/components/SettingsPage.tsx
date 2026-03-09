@@ -219,11 +219,11 @@ export default function SettingsPage() {
             </div>
 
             {loadState === "loading" && !Object.keys(preferences).length ? (
-              <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-6 text-center text-sm text-text-secondary">
+              <div role="status" aria-live="polite" className="rounded-2xl border border-slate-200/70 bg-slate-50 p-6 text-center text-sm text-text-secondary">
                 Loading preferences…
               </div>
             ) : loadState === "error" ? (
-              <div className="rounded-2xl border border-red-200/70 bg-red-50 p-6 text-center text-sm text-red-600">
+              <div role="alert" aria-live="assertive" className="rounded-2xl border border-red-200/70 bg-red-50 p-6 text-center text-sm text-red-600">
                 Unable to load preferences. Please try again.
               </div>
             ) : (

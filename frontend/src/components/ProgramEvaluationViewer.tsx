@@ -130,11 +130,11 @@ export default function ProgramEvaluationViewer() {
 
         <div className="mt-4 rounded-xl border border-slate-200/70 bg-slate-50 px-4 py-3 text-sm text-text-primary">
           {loadState === "loading" ? (
-            <span className="text-text-secondary">Loading program evaluation…</span>
+            <span role="status" aria-live="polite" className="text-text-secondary">Loading program evaluation…</span>
           ) : loadState === "error" ? (
-            <span className="text-danger text-xs">{error}</span>
+            <span role="alert" aria-live="assertive" className="text-danger text-xs">{error}</span>
           ) : loadState === "empty" ? (
-            <span className="text-text-secondary">No program evaluation uploaded yet.</span>
+            <span role="status" aria-live="polite" className="text-text-secondary">No program evaluation uploaded yet.</span>
           ) : (
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <div className="font-medium truncate">{fileLabel}</div>

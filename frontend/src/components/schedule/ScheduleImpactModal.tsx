@@ -97,11 +97,11 @@ export default function ScheduleImpactModal({
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {!baseRequirements ? (
-            <div className="text-center py-12 text-slate-400">
+            <div role="status" aria-live="polite" className="text-center py-12 text-slate-400">
               Loading requirements...
             </div>
           ) : impactData.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
+            <div role="status" aria-live="polite" className="text-center py-12 text-slate-400">
               No remaining requirements found. You might be all set!
             </div>
           ) : (

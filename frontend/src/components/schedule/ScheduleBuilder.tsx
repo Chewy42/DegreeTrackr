@@ -317,9 +317,9 @@ export default function ScheduleBuilder() {
 	    <div className="flex flex-col lg:flex-row h-full min-h-0 bg-slate-50 overflow-hidden relative">
       {/* Loading Overlay */}
       {generating && (
-        <div className="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
+        <div role="status" aria-live="polite" className="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
           <div className="bg-white p-8 rounded-2xl shadow-2xl border border-slate-100 flex flex-col items-center max-w-sm text-center">
-            <div className="relative w-16 h-16 mb-6">
+            <div className="relative w-16 h-16 mb-6" aria-hidden="true">
               <div className="absolute inset-0 border-4 border-blue-100 rounded-full"></div>
               <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
               <FiCpu className="absolute inset-0 m-auto text-blue-600 w-6 h-6 animate-pulse" />

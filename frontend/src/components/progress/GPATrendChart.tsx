@@ -168,7 +168,7 @@ export default function GPATrendChart({ courses }: GPATrendChartProps) {
   const maxGpa = Math.max(...chartData.map((d) => Math.max(d.termGpa, d.cumulativeGpa))) + 0.2;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow" role="region" aria-label="GPA trend chart">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-sm font-semibold text-slate-800">GPA Trend</h3>
@@ -186,7 +186,34 @@ export default function GPATrendChart({ courses }: GPATrendChartProps) {
         </div>
       </div>
 
-      <div className="h-64">
+      {/* Accessible data table — visually hidden, read by screen readers */}
+      <div className="sr-only">
+        <table>
+          <caption>GPA trend by term</caption>
+          <thead>
+            <tr>
+              <th scope="col">Term</th>
+              <th scope="col">Term GPA</th>
+              <th scope="col">Cumulative GPA</th>
+              <th scope="col">Credits</th>
+              <th scope="col">Courses</th>
+            </tr>
+          </thead>
+          <tbody>
+            {chartData.map((d) => (
+              <tr key={d.fullTerm}>
+                <td>{d.fullTerm}</td>
+                <td>{d.termGpa.toFixed(2)}</td>
+                <td>{d.cumulativeGpa.toFixed(2)}</td>
+                <td>{d.credits}</td>
+                <td>{d.courseCount}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="h-64" aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={chartData}

@@ -112,15 +112,15 @@ export default function ChatHistorySidebar({ onSelectSession, currentSessionId }
       
       <div className="flex-1 overflow-y-auto">
 	        {error && !loading ? (
-	          <div className="p-4 text-center text-xs text-amber-700 bg-amber-50 border-b border-amber-100">
+	          <div role="alert" aria-live="assertive" className="p-4 text-center text-xs text-amber-700 bg-amber-50 border-b border-amber-100">
 	            {error}
 	          </div>
 	        ) : null}
         {loading && sessions.length === 0 ? (
-          <div className="p-4 text-center text-xs text-slate-400">Loading...</div>
+          <div role="status" aria-live="polite" className="p-4 text-center text-xs text-slate-400">Loading...</div>
         ) : exploreSessions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-[11px] text-slate-400 px-4 gap-2">
-            <FiMessageSquare className="h-4 w-4 opacity-20" />
+          <div role="status" aria-live="polite" className="flex flex-col items-center justify-center h-full text-[11px] text-slate-400 px-4 gap-2">
+            <FiMessageSquare className="h-4 w-4 opacity-20" aria-hidden="true" />
             <span>No saved explore chats yet.</span>
           </div>
 	        ) : (

@@ -223,7 +223,7 @@ export default function ProgramEvaluationViewer() {
             </div>
             <div className="h-[70vh] overflow-hidden border-t border-slate-200/70">
               {modalLoading && !previewUrl ? (
-                <div className="flex h-full items-center justify-center text-sm text-text-secondary">
+                <div role="status" aria-live="polite" className="flex h-full items-center justify-center text-sm text-text-secondary">
                   Opening PDF…
                 </div>
               ) : previewUrl ? (
@@ -240,7 +240,7 @@ export default function ProgramEvaluationViewer() {
                 />
               ) : (
                 <div className="flex h-full items-center justify-center px-6 text-sm text-danger text-center">
-                  <div className="space-y-3">
+                  <div role="alert" aria-live="assertive" className="space-y-3">
                     <div>{error || "Unable to load PDF."}</div>
                     <div className="flex justify-center">
                       <button

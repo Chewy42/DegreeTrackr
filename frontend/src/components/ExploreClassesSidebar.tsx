@@ -78,15 +78,15 @@ export default function ExploreClassesSidebar() {
 
       <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-2">
         {loading && (
-          <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400 mt-6">
-            <FiLoader className="h-3.5 w-3.5 animate-spin" />
+          <div role="status" aria-live="polite" className="flex items-center justify-center gap-2 text-[11px] text-slate-400 mt-6">
+            <FiLoader className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
             <span>Loading classes…</span>
           </div>
         )}
 
         {!loading && error && (
-          <div className="flex items-start gap-2 rounded-lg border border-red-100 bg-red-50 p-3 mt-4 text-[11px] text-red-600">
-            <FiAlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <div role="alert" aria-live="assertive" className="flex items-start gap-2 rounded-lg border border-red-100 bg-red-50 p-3 mt-4 text-[11px] text-red-600">
+            <FiAlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" aria-hidden="true" />
             <span>{error}</span>
           </div>
         )}

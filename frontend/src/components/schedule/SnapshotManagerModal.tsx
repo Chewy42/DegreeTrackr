@@ -66,7 +66,7 @@ export default function SnapshotManagerModal({
 
         {error && (
           <div className="px-4 pt-3">
-            <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <div role="alert" aria-live="assertive" className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               {error}
             </div>
           </div>
@@ -102,7 +102,7 @@ export default function SnapshotManagerModal({
         </form>
 
         <div className="px-4 pb-3 flex items-center justify-between text-[11px] text-slate-500">
-          <span>
+          <span role="status" aria-live="polite">
             {loading ? 'Loading snapshots…' : `${snapshots.length} saved snapshot${snapshots.length === 1 ? '' : 's'}`}
           </span>
           <button

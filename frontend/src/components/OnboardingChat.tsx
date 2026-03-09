@@ -75,12 +75,14 @@ export default function OnboardingChat() {
   const [answers, setAnswers] = useState<OnboardingAnswers>({});
   const [loading, setLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
 
   const currentQuestion = ONBOARDING_QUESTIONS[currentQuestionIndex];
   const progressPercent = Math.round(((currentQuestionIndex) / ONBOARDING_QUESTIONS.length) * 100);
 
   const handleOptionClick = (questionId: string, value: string) => {
     // Save the answer
+    setFinishError(null);
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
 
     // Move to next question or complete
@@ -162,6 +164,7 @@ export default function OnboardingChat() {
       console.error("Finish failed", err);
       setIsComplete(false);
       setLoading(false);
+      setFinishError("Something went wrong saving your preferences. Please try again.");
     }
   };
 
@@ -259,6 +262,15 @@ export default function OnboardingChat() {
                   </h2>
                 </div>
               </div>
+
+              {/* Finish error */}
+              {finishError && (
+                <div role="alert" className="pl-16">
+                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                    {finishError}
+                  </p>
+                </div>
+              )}
 
               {/* Options as Buttons */}
               <div className="space-y-3 pl-16">

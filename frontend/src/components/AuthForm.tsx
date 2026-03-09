@@ -33,6 +33,7 @@ export default function AuthForm({
         value={email}
         onChange={(v) => setField("email", v)}
         placeholder="you@chapman.edu"
+        autoComplete="email"
         leftIcon={<FiMail size={16} />}
       />
 
@@ -42,6 +43,7 @@ export default function AuthForm({
         value={password}
         onChange={(v) => setField("password", v)}
         placeholder={mode === "sign_in" ? "Enter your password" : "Create a strong password"}
+        autoComplete={mode === "sign_in" ? "current-password" : "new-password"}
         leftIcon={<FiLock size={16} />}
       />
 
@@ -52,12 +54,13 @@ export default function AuthForm({
           value={confirmPassword}
           onChange={(v) => setField("confirmPassword", v)}
           placeholder="Re-enter password"
+          autoComplete="new-password"
           leftIcon={<FiLock size={16} />}
         />
       )}
 
       {error && (
-        <p className={"mt-1 text-xs text-danger text-center"}>{error}</p>
+        <p role="alert" aria-live="assertive" className={"mt-1 text-xs text-danger text-center"}>{error}</p>
       )}
 
       <div className={"pt-1"}>

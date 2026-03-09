@@ -36,7 +36,7 @@ export default function TextField({
                         </div>
                         <div className={'group relative flex items-center rounded-2xl border border-slate-200 bg-white shadow-sm transition-transform duration-150 ease-out hover:-translate-y-0.5 hover:shadow-lg focus-within:-translate-y-0.5 focus-within:shadow-lg'}>
                                 {leftIcon ? (
-                                        <span className={'pl-4 pr-2 text-slate-400 group-focus-within:text-slate-700'}>
+                                        <span aria-hidden="true" className={'pl-4 pr-2 text-slate-400 group-focus-within:text-slate-700'}>
                                                 {leftIcon}
                                         </span>
                                 ) : null}

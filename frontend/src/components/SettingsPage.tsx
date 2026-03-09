@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { FiLogOut, FiCheck, FiRefreshCw, FiSettings } from "react-icons/fi";
+import { FiLogOut, FiCheck, FiRefreshCw, FiSettings, FiAlertCircle } from "react-icons/fi";
 import { useMutation, useQuery } from "convex/react";
 import { useAuth } from "../auth/AuthContext";
 import AuthCard from "./AuthCard";
@@ -87,6 +87,7 @@ export default function SettingsPage() {
   const [loadState, setLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [savingField, setSavingField] = useState<string | null>(null);
   const [successField, setSuccessField] = useState<string | null>(null);
+  const [saveErrorField, setSaveErrorField] = useState<string | null>(null);
 
   const convexSchedulingPrefs = useQuery(
     convexApi.profile.getCurrentSchedulingPreferences,
@@ -138,6 +139,7 @@ export default function SettingsPage() {
 
     setSavingField(field);
     setSuccessField(null);
+    setSaveErrorField(null);
 
     let saved = false;
 
@@ -174,6 +176,9 @@ export default function SettingsPage() {
       setPreferences((prev) => ({ ...prev, [field]: value }));
       setSuccessField(field);
       setTimeout(() => setSuccessField(null), 2000);
+    } else {
+      setSaveErrorField(field);
+      setTimeout(() => setSaveErrorField(null), 3000);
     }
 
     setSavingField(null);
@@ -241,6 +246,12 @@ export default function SettingsPage() {
                         <div className="flex items-center gap-1.5 text-xs text-green-600">
                           <FiCheck className="text-sm" />
                           Saved
+                        </div>
+                      )}
+                      {saveErrorField === config.id && (
+                        <div className="flex items-center gap-1.5 text-xs text-red-600" role="alert">
+                          <FiAlertCircle className="text-sm" />
+                          Save failed
                         </div>
                       )}
                     </div>

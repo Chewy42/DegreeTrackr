@@ -215,29 +215,39 @@ export default function OnboardingChat() {
             {/* Right: Action Buttons */}
             <div className="hidden md:flex items-center gap-2">
               <button
+                type="button"
                 onClick={handleReset}
                 disabled={loading || currentQuestionIndex === 0}
                 className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <FiRefreshCw className={`text-lg ${loading ? "animate-spin" : ""}`} />
+                <FiRefreshCw className={`text-lg ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
                 Start Over
               </button>
               <button
+                type="button"
                 onClick={handleReupload}
                 disabled={loading}
                 className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <FiUploadCloud className="text-lg" />
+                <FiUploadCloud className="text-lg" aria-hidden="true" />
                 New Evaluation
               </button>
             </div>
           </div>
 
           {/* Progress Bar */}
-          <div className="mt-5 h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+          <div
+            role="progressbar"
+            aria-valuenow={currentQuestionIndex + 1}
+            aria-valuemin={1}
+            aria-valuemax={ONBOARDING_QUESTIONS.length}
+            aria-label={`Onboarding progress: question ${currentQuestionIndex + 1} of ${ONBOARDING_QUESTIONS.length}`}
+            className="mt-5 h-2 w-full bg-slate-200 rounded-full overflow-hidden"
+          >
             <div
               className="h-full bg-blue-600 rounded-full transition-all duration-500 ease-out"
               style={{ width: `${progressPercent}%` }}
+              aria-hidden="true"
             />
           </div>
           <p className="mt-2 text-sm text-slate-500">
@@ -277,12 +287,13 @@ export default function OnboardingChat() {
                 {currentQuestion.options.map((option) => (
                   <button
                     key={option.value}
+                    type="button"
                     onClick={() => handleOptionClick(currentQuestion.id, option.value)}
                     disabled={loading}
                     className="w-full flex items-center justify-between gap-4 px-6 py-4 rounded-xl bg-white text-slate-700 text-lg font-medium hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all border-2 border-slate-200 text-left disabled:opacity-50 disabled:cursor-not-allowed group"
                   >
                     <span>{option.label}</span>
-                    <FiArrowRight className="text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+                    <FiArrowRight className="text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" aria-hidden="true" />
                   </button>
                 ))}
               </div>
@@ -291,6 +302,7 @@ export default function OnboardingChat() {
               {currentQuestionIndex > 0 && (
                 <div className="pl-16 pt-4">
                   <button
+                    type="button"
                     onClick={handleBack}
                     disabled={loading}
                     className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-50"
@@ -306,20 +318,22 @@ export default function OnboardingChat() {
         {/* Mobile Action Buttons */}
         <div className="flex md:hidden items-center justify-center gap-6 p-4 border-t border-slate-200 bg-white">
           <button
+            type="button"
             onClick={handleReset}
             disabled={loading || currentQuestionIndex === 0}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-500 hover:text-red-600 transition-colors disabled:opacity-50"
           >
-            <FiRefreshCw className={`text-lg ${loading ? "animate-spin" : ""}`} />
+            <FiRefreshCw className={`text-lg ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
             Start Over
           </button>
-          <div className="h-5 w-px bg-slate-300" />
+          <div className="h-5 w-px bg-slate-300" aria-hidden="true" />
           <button
+            type="button"
             onClick={handleReupload}
             disabled={loading}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors disabled:opacity-50"
           >
-            <FiUploadCloud className="text-lg" />
+            <FiUploadCloud className="text-lg" aria-hidden="true" />
             New Evaluation
           </button>
         </div>

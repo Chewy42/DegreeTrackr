@@ -329,11 +329,13 @@ export default function ScheduleBuilder() {
       {/* Error Toast */}
       {generateError && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top duration-300">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 max-w-md">
-            <FiAlertTriangle className="w-5 h-5 flex-shrink-0" />
+          <div role="alert" aria-live="assertive" className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 max-w-md">
+            <FiAlertTriangle className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
             <span className="text-sm">{generateError}</span>
-            <button 
+            <button
+              type="button"
               onClick={() => setGenerateError(null)}
+              aria-label="Dismiss error"
               className="ml-2 text-red-500 hover:text-red-700 font-bold"
             >
               ×
@@ -344,11 +346,13 @@ export default function ScheduleBuilder() {
 
 	      {snapshotError && !showSnapshots && (
 	        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-top duration-300">
-	          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 max-w-md">
-	            <FiAlertTriangle className="w-5 h-5 flex-shrink-0" />
+	          <div role="alert" aria-live="assertive" className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 max-w-md">
+	            <FiAlertTriangle className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
 	            <span className="text-sm">{snapshotError}</span>
 	            <button
+	              type="button"
 	              onClick={() => setSnapshotError(null)}
+	              aria-label="Dismiss error"
 	              className="ml-2 text-red-500 hover:text-red-700 font-bold"
 	            >
 	              ×

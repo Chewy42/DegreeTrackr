@@ -37,8 +37,13 @@ export default function EmailConfirmationNotice({ email, onResend, onBack }: Pro
           {' '}confirmation button in that email. Once confirmed, return here to sign in.
         </div>
         {error ? (
-          <div className="text-sm text-danger mb-2 text-center">
+          <div role="alert" aria-live="assertive" className="text-sm text-danger mb-2 text-center">
             {error}
+          </div>
+        ) : null}
+        {status === 'sent' ? (
+          <div role="status" aria-live="polite" className="text-sm text-emerald-700 mb-2 text-center">
+            Confirmation email sent.
           </div>
         ) : null}
         <div className="space-y-2 pt-1">

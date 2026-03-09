@@ -221,7 +221,7 @@ export default function App() {
               </p>
             </div>
             {error ? (
-              <div className="text-sm text-danger text-center py-2 px-3 rounded-lg bg-[rgba(239,68,68,0.08)]">
+              <div role="alert" aria-live="assertive" className="text-sm text-danger text-center py-2 px-3 rounded-lg bg-[rgba(239,68,68,0.08)]">
                 {error}
               </div>
             ) : null}

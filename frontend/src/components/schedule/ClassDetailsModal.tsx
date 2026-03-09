@@ -36,21 +36,28 @@ export default function ClassDetailsModal({ isOpen, onClose, classData }: ClassD
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="class-details-title"
+        className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200"
+      >
         {/* Header with class color */}
         <div 
           className="px-6 py-4 border-b flex justify-between items-start"
           style={{ backgroundColor: color, borderColor: color.replace('100', '200') }}
         >
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-lg text-slate-800">{code}</h3>
+            <h3 id="class-details-title" className="font-bold text-lg text-slate-800">{code}</h3>
             <p className="text-sm text-slate-600 mt-0.5 leading-snug">{title}</p>
           </div>
-          <button 
+          <button
+            type="button"
             onClick={onClose}
+            aria-label="Close"
             className="text-slate-500 hover:text-slate-700 transition-colors p-1 hover:bg-white/50 rounded-lg ml-2 shrink-0"
           >
-            <FiX className="w-5 h-5" />
+            <FiX className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
         
@@ -58,7 +65,7 @@ export default function ClassDetailsModal({ isOpen, onClose, classData }: ClassD
         <div className="p-6 space-y-4">
           {/* Credits */}
           <div className="flex items-center gap-3 text-slate-700">
-            <FiBook className="w-4 h-4 text-slate-400 shrink-0" />
+            <FiBook className="w-4 h-4 text-slate-400 shrink-0" aria-hidden="true" />
             <span className="text-sm">
               <span className="font-medium">{credits}</span> credit{credits !== 1 ? 's' : ''}
             </span>
@@ -66,25 +73,25 @@ export default function ClassDetailsModal({ isOpen, onClose, classData }: ClassD
 
           {/* Schedule */}
           <div className="flex items-center gap-3 text-slate-700">
-            <FiCalendar className="w-4 h-4 text-slate-400 shrink-0" />
+            <FiCalendar className="w-4 h-4 text-slate-400 shrink-0" aria-hidden="true" />
             <span className="text-sm">{displayDays || 'TBA'}</span>
           </div>
 
           {/* Time */}
           <div className="flex items-center gap-3 text-slate-700">
-            <FiClock className="w-4 h-4 text-slate-400 shrink-0" />
+            <FiClock className="w-4 h-4 text-slate-400 shrink-0" aria-hidden="true" />
             <span className="text-sm">{displayTime || 'TBA'}</span>
           </div>
 
           {/* Location */}
           <div className="flex items-center gap-3 text-slate-700">
-            <FiMapPin className="w-4 h-4 text-slate-400 shrink-0" />
+            <FiMapPin className="w-4 h-4 text-slate-400 shrink-0" aria-hidden="true" />
             <span className="text-sm">{location || 'TBA'}</span>
           </div>
 
           {/* Professor */}
           <div className="flex items-center gap-3 text-slate-700">
-            <FiUser className="w-4 h-4 text-slate-400 shrink-0" />
+            <FiUser className="w-4 h-4 text-slate-400 shrink-0" aria-hidden="true" />
             <div className="text-sm">
               <span>{professor || 'TBA'}</span>
               {professorRating && (
@@ -99,7 +106,7 @@ export default function ClassDetailsModal({ isOpen, onClose, classData }: ClassD
           {requirementsSatisfied && requirementsSatisfied.length > 0 && (
             <div className="pt-2 border-t border-slate-100">
               <div className="flex items-center gap-2 text-slate-600 mb-2">
-                <FiAward className="w-4 h-4 text-slate-400" />
+                <FiAward className="w-4 h-4 text-slate-400" aria-hidden="true" />
                 <span className="text-sm font-medium">Satisfies Requirements</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -119,6 +126,7 @@ export default function ClassDetailsModal({ isOpen, onClose, classData }: ClassD
         {/* Footer */}
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
           <button
+            type="button"
             onClick={onClose}
             className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors text-sm"
           >

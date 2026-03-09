@@ -11,4 +11,4 @@ dist-ssr
 .context
 ai_docs
 __pycache__
-venv
+venv*.tsbuildinfo

@@ -169,8 +169,8 @@ export default function ProgressPage() {
     return (
       <div className="w-full max-w-7xl mx-auto p-4 md:p-6">
         <div className="flex items-center justify-center h-64">
-          <div className="flex items-center gap-3 text-slate-500">
-            <FiRefreshCw className="animate-spin text-xl" />
+          <div role="status" aria-live="polite" className="flex items-center gap-3 text-slate-500">
+            <FiRefreshCw className="animate-spin text-xl" aria-hidden="true" />
             <span className="text-sm font-medium">Loading your progress...</span>
           </div>
         </div>
@@ -181,8 +181,8 @@ export default function ProgressPage() {
   if (loadState === "empty") {
     return (
       <div className="w-full max-w-7xl mx-auto p-4 md:p-6">
-        <div className="flex flex-col items-center justify-center h-64 text-center">
-          <FiAlertCircle className="text-4xl text-slate-400 mb-3" />
+        <div role="status" aria-live="polite" className="flex flex-col items-center justify-center h-64 text-center">
+          <FiAlertCircle className="text-4xl text-slate-400 mb-3" aria-hidden="true" />
           <h3 className="text-lg font-semibold text-slate-700 mb-1">No Progress Data Available</h3>
           <p className="text-sm text-slate-500 max-w-md">
             Upload your program evaluation PDF first to see your academic progress visualized here.
@@ -195,11 +195,12 @@ export default function ProgressPage() {
   if (loadState === "error") {
     return (
       <div className="w-full max-w-7xl mx-auto p-4 md:p-6">
-        <div className="flex flex-col items-center justify-center h-64 text-center">
-          <FiAlertCircle className="text-4xl text-red-400 mb-3" />
+        <div role="alert" aria-live="assertive" className="flex flex-col items-center justify-center h-64 text-center">
+          <FiAlertCircle className="text-4xl text-red-400 mb-3" aria-hidden="true" />
           <h3 className="text-lg font-semibold text-slate-700 mb-1">Error Loading Progress</h3>
           <p className="text-sm text-red-500 mb-4">{error}</p>
           <button
+            type="button"
             onClick={fetchProgress}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-500 transition-colors"
           >

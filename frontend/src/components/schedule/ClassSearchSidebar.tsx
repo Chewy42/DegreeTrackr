@@ -31,7 +31,10 @@ export default function ClassSearchSidebar({
   useEffect(() => {
     getSubjects()
       .then(data => setSubjects(data.subjects))
-      .catch(console.error);
+      .catch((err) => {
+        console.error('Failed to load subjects:', err);
+        setError('Could not load subject filters. Search may still work.');
+      });
   }, []);
 
   // Search function

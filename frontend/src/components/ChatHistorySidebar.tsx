@@ -49,6 +49,7 @@ export default function ChatHistorySidebar({ onSelectSession, currentSessionId }
       }
     } catch (err) {
       console.error(err);
+      setError("Couldn't delete that chat. Please try again.");
       refreshSessions();
     } finally {
       setDeletingId(null);
@@ -68,6 +69,7 @@ export default function ChatHistorySidebar({ onSelectSession, currentSessionId }
         : []));
     } catch (err) {
       console.error(err);
+      setError("Couldn't clear chat history. Please try again.");
       refreshSessions();
     } finally {
       setClearing(false);

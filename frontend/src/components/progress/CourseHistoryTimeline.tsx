@@ -164,7 +164,7 @@ export default function CourseHistoryTimeline({ courses }: CourseHistoryTimeline
       </div>
 
       {/* Course list */}
-      <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+      <ul className="space-y-2 max-h-56 overflow-y-auto pr-1" aria-label="Courses this term">
         {currentTerm?.courses.map((course, index) => {
           const courseId = `${course.subject}-${course.number}-${index}`;
           const isHovered = hoveredCourse === courseId;
@@ -172,11 +172,11 @@ export default function CourseHistoryTimeline({ courses }: CourseHistoryTimeline
           const gradeBg = GRADE_BG[course.grade || ""] || "bg-slate-50 text-slate-600 border-slate-200";
 
           return (
-            <div
+            <li
               key={courseId}
               onMouseEnter={() => setHoveredCourse(courseId)}
               onMouseLeave={() => setHoveredCourse(null)}
-              className={`flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 cursor-pointer ${
+              className={`flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 ${
                 isHovered
                   ? "border-blue-200 bg-blue-50/50 shadow-sm"
                   : "border-slate-100 bg-slate-50/50 hover:border-slate-200"
@@ -204,13 +204,14 @@ export default function CourseHistoryTimeline({ courses }: CourseHistoryTimeline
               {/* Grade badge */}
               <div
                 className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${gradeBg} flex-shrink-0`}
+                aria-label={`Grade: ${course.grade || "not graded"}`}
               >
                 {course.grade || "—"}
               </div>
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
 
       {/* Grade legend */}
       <div className="mt-4 pt-3 border-t border-slate-100">

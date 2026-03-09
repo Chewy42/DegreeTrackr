@@ -165,13 +165,20 @@ export default function UpcomingMilestones({
               {/* Progress bar (if applicable) */}
               {milestone.progress !== undefined && (
                 <div className="mt-3">
-                  <div className="flex items-center justify-between text-[10px] mb-1">
+                  <div className="flex items-center justify-between text-[10px] mb-1" aria-hidden="true">
                     <span className="text-slate-400">Progress</span>
                     <span className="font-medium text-slate-600">
                       {milestone.progress.toFixed(0)}%{milestone.target && ` → ${milestone.target}`}
                     </span>
                   </div>
-                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-1.5 bg-slate-100 rounded-full overflow-hidden"
+                    role="progressbar"
+                    aria-valuenow={Math.round(milestone.progress)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`${milestone.title} progress: ${milestone.progress.toFixed(0)}%`}
+                  >
                     <div
                       className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full transition-all duration-700 ease-out"
                       style={{ width: `${Math.min(milestone.progress, 100)}%` }}

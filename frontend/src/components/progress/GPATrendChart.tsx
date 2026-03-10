@@ -157,7 +157,7 @@ export default function GPATrendChart({ courses }: GPATrendChartProps) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
         <h3 className="text-sm font-semibold text-slate-800 mb-2">GPA Trend</h3>
-        <div className="h-64 flex items-center justify-center text-slate-400 text-sm">
+        <div role="status" aria-live="polite" className="h-64 flex items-center justify-center text-slate-400 text-sm">
           No grade data available to show trends
         </div>
       </div>

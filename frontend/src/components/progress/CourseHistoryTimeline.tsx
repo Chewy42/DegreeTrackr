@@ -101,7 +101,7 @@ export default function CourseHistoryTimeline({ courses }: CourseHistoryTimeline
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
         <h3 className="text-sm font-semibold text-slate-800 mb-2">Course History</h3>
-        <div className="h-64 flex items-center justify-center text-slate-400 text-sm">
+        <div role="status" aria-live="polite" className="h-64 flex items-center justify-center text-slate-400 text-sm">
           No course history available
         </div>
       </div>

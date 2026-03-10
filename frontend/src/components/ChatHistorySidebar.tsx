@@ -91,20 +91,22 @@ export default function ChatHistorySidebar({ onSelectSession, currentSessionId }
 	        </div>
 	        <div className="flex items-center gap-1">
 	          <button 
+	            type="button"
 	            onClick={refreshSessions}
 	            className="text-slate-400 hover:text-slate-600 p-1"
 	            title="Refresh history"
 	          >
-	            <FiClock className="h-3 w-3" />
+	            <FiClock className="h-3 w-3" aria-hidden="true" />
 	          </button>
 	          {exploreSessions.length > 0 && (
 	            <button
+	              type="button"
 	              onClick={handleClearAll}
 	              className="text-slate-400 hover:text-red-500 p-1 disabled:opacity-40"
 	              disabled={clearing}
 	              title="Clear all Explore chats"
 	            >
-	              <FiTrash2 className="h-3 w-3" />
+	              <FiTrash2 className="h-3 w-3" aria-hidden="true" />
 	            </button>
 	          )}
 	        </div>

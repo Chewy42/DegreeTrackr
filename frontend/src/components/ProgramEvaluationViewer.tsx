@@ -99,7 +99,7 @@ export default function ProgramEvaluationViewer() {
   }, [fetchParsed, revokePreview]);
 
   const fileLabel = useMemo(() => {
-    if (!parsed) return "No file on file";
+    if (!parsed) return "No file on record";
     return parsed.original_filename || "Program evaluation.pdf";
   }, [parsed]);
 

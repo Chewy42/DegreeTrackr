@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiAlertTriangle, FiCheckCircle, FiInfo } from 'react-icons/fi';
 import { validateSchedule, getUserRequirements, generateAutoSchedule, getClassById, createScheduleSnapshot, listScheduleSnapshots, deleteScheduleSnapshot } from '../../lib/scheduleApi';
-import { 
-	  ScheduledClass, 
-	  ClassSection, 
-	  ScheduleValidation, 
+import {
+	  ScheduledClass,
+	  ClassSection,
+	  ScheduleValidation,
 	  getClassColor,
 	  ConflictInfo,
 	  RequirementsSummary,
@@ -74,7 +74,7 @@ export default function ScheduleBuilder() {
 
       try {
         const result = await validateSchedule(scheduledClasses.map(c => c.id));
-        
+
         // Add client-side warnings for classes that don't count
         const requirementWarnings: string[] = [];
         scheduledClasses.forEach(cls => {
@@ -118,46 +118,46 @@ export default function ScheduleBuilder() {
       setGenerateError('Please log in to generate a schedule');
       return;
     }
-    
+
     setGenerating(true);
     setGenerateError(null);
-    
+
     try {
       const { class_ids, message } = await generateAutoSchedule(jwt);
-      
+
       if (!class_ids || class_ids.length === 0) {
         setGenerateError(message || 'No classes could be generated. Try adjusting your preferences.');
         return;
       }
-      
+
       // Fetch full class details in parallel for better performance
-      const classPromises = class_ids.map(id => 
+      const classPromises = class_ids.map(id =>
         getClassById(id, jwt).catch(e => {
           console.error(`Failed to load class ${id}:`, e);
           return null;
         })
       );
-      
+
 	      const fetchedClasses = await Promise.all(classPromises);
 	      const validClasses = fetchedClasses.filter((cls): cls is ClassSection => cls !== null);
-	      
+
 	      // Filter out any TBA / arranged sections with no concrete meeting times
 	      const schedulableClasses = validClasses.filter(cls => hasMeetingTimes(cls));
-	      
+
 	      const newClasses: ScheduledClass[] = schedulableClasses.map((cls, index) => ({
 	        ...cls,
 	        color: getClassColor(index),
 	      }));
-      
+
 	      setScheduledClasses(newClasses);
       // Switch to calendar view on mobile to show results
       setMobileView('calendar');
-      
+
       // Show warning if not all classes loaded
       if (validClasses.length < class_ids.length) {
         console.warn(`Only loaded ${validClasses.length} of ${class_ids.length} generated classes`);
       }
-      
+
     } catch (err) {
       console.error('Failed to generate schedule:', err);
       setGenerateError(err instanceof Error ? err.message : 'Failed to generate schedule');
@@ -387,17 +387,18 @@ export default function ScheduleBuilder() {
 
 	      {/* Mobile View Toggle */}
       <div className="lg:hidden bg-white border-b border-slate-200 p-2 flex justify-center gap-2 shrink-0">
-        <button 
+        <button
           onClick={() => setMobileView('calendar')}
           className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-            mobileView === 'calendar' 
-              ? 'bg-blue-100 text-blue-700' 
+            mobileView === 'calendar'
+              ? 'bg-blue-100 text-blue-700'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           Calendar
         </button>
-        <button 
+        <button
+          type="button"
           onClick={() => setMobileView('search')}
           className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
             mobileView === 'search' 
@@ -408,20 +409,23 @@ export default function ScheduleBuilder() {
           Add Classes
         </button>
 	        <button
+	          type="button"
 	          onClick={handleAutoGenerate}
 	          disabled={generating || !jwt}
+	          aria-busy={generating ? true : undefined}
 	          className="px-4 py-1.5 rounded-full text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 transition-colors"
 	        >
-	          {generating ? <FiLoader className="animate-spin w-3.5 h-3.5" /> : <FiCpu className="w-3.5 h-3.5" />}
+	          {generating ? <FiLoader className="animate-spin w-3.5 h-3.5" aria-hidden="true" /> : <FiCpu className="w-3.5 h-3.5" aria-hidden="true" />}
 	          <span>Auto</span>
 	        </button>
 	        <button
+	          type="button"
 	          onClick={handleOpenSnapshots}
 	          disabled={!jwt}
 	          className="px-3 py-1.5 rounded-full text-sm font-medium border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 transition-colors"
 	          title={!jwt ? 'Please log in to save and load schedule snapshots' : 'Save and load schedule snapshots'}
 	        >
-	          <FiSave className="w-3.5 h-3.5" />
+	          <FiSave className="w-3.5 h-3.5" aria-hidden="true" />
 	          <span className="sr-only">Snapshots</span>
 	        </button>
       </div>
@@ -440,13 +444,14 @@ export default function ScheduleBuilder() {
               <span className="flex items-center gap-1.5">
                 <span className="font-medium text-slate-700">{validation.totalCredits}</span> Credits
               </span>
-              
+
               {/* Impact Button */}
               <button
+                type="button"
                 onClick={() => setShowImpact(true)}
                 className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded transition-colors text-xs font-medium"
               >
-                <FiTrendingUp className="w-3.5 h-3.5" />
+                <FiTrendingUp className="w-3.5 h-3.5" aria-hidden="true" />
                 View Impact
               </button>
             </div>
@@ -455,26 +460,30 @@ export default function ScheduleBuilder() {
 	          {/* Actions & Validation Status */}
 	          <div className="flex items-center gap-3">
 	            <button
+	              type="button"
 	              onClick={handleAutoGenerate}
 	              disabled={generating || !jwt}
+	              aria-busy={generating ? true : undefined}
 	              title={!jwt ? 'Please log in to use this feature' : 'Generate a schedule based on your preferences'}
 	              className="hidden md:flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-full text-sm font-medium transition-all shadow-sm hover:shadow hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
 	            >
-	              {generating ? <FiLoader className="animate-spin" /> : <FiCpu />}
+	              {generating ? <FiLoader className="animate-spin" aria-hidden="true" /> : <FiCpu aria-hidden="true" />}
 	              <span>Auto Generate</span>
 	            </button>
 
 	            <button
+	              type="button"
 	              onClick={handleOpenSnapshots}
 	              disabled={!jwt}
 	              title={!jwt ? 'Please log in to save and load schedule snapshots' : 'Save and load schedule snapshots'}
 	              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
 	            >
-	              <FiSave className="w-4 h-4" />
+	              <FiSave className="w-4 h-4" aria-hidden="true" />
 	              <span>Snapshots</span>
 	            </button>
 
 	            <button
+	              type="button"
 	              onClick={handleClearSchedule}
 	              disabled={scheduledClasses.length === 0}
 	              title={
@@ -486,7 +495,7 @@ export default function ScheduleBuilder() {
 	            >
 	              <span>Clear</span>
 	            </button>
-	
+
 	            {!validation.valid ? (
               <div className="flex items-center gap-2 text-red-600 bg-red-50 px-3 py-1.5 rounded-full text-sm font-medium border border-red-100">
                 <FiAlertTriangle className="w-4 h-4" />
@@ -494,11 +503,12 @@ export default function ScheduleBuilder() {
                 <span className="sm:hidden">{validation.conflicts.length}</span>
               </div>
             ) : validation.warnings.length > 0 ? (
-              <button 
+              <button
+                type="button"
                 onClick={() => setShowWarnings(true)}
                 className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full text-sm font-medium border border-amber-100 hover:bg-amber-100 transition-colors cursor-pointer"
               >
-                <FiInfo className="w-4 h-4" />
+                <FiInfo className="w-4 h-4" aria-hidden="true" />
                 <span className="hidden sm:inline">{validation.warnings.length} Warning{validation.warnings.length !== 1 ? 's' : ''}</span>
                 <span className="sm:hidden">{validation.warnings.length}</span>
               </button>
@@ -513,7 +523,7 @@ export default function ScheduleBuilder() {
 
 	        {/* Calendar View */}
 	        <div className="flex-1 relative min-h-0">
-          <WeeklyCalendar 
+          <WeeklyCalendar
             classes={scheduledClasses}
             onRemoveClass={handleRemoveClass}
           />
@@ -522,7 +532,7 @@ export default function ScheduleBuilder() {
 
       {/* Sidebar */}
 	      <div className={`${mobileView === 'calendar' ? 'hidden lg:block' : 'block'} h-full lg:w-96 shrink-0`}>
-	        <ClassSearchSidebar 
+	        <ClassSearchSidebar
 	          onAddClass={handleAddClass}
 	          onRemoveClass={handleRemoveClass}
 	          addedClassIds={addedClassIds}
@@ -530,10 +540,10 @@ export default function ScheduleBuilder() {
 	        />
 	      </div>
 
-      <WarningModal 
-        isOpen={showWarnings} 
-        onClose={() => setShowWarnings(false)} 
-        warnings={validation.warnings} 
+      <WarningModal
+        isOpen={showWarnings}
+        onClose={() => setShowWarnings(false)}
+        warnings={validation.warnings}
       />
 
       <ScheduleImpactModal

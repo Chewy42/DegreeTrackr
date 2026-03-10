@@ -53,6 +53,7 @@ function RequirementItem({ requirement, index }: RequirementItemProps) {
       }`}
     >
       <button
+        type="button"
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full px-4 py-3 flex items-center gap-3"
         aria-expanded={isExpanded}
@@ -196,8 +197,10 @@ export default function RequirementsChecklist({ requirements }: RequirementsChec
             {completedCount} of {totalCount} categories complete
           </p>
         </div>
-        <div className="flex bg-slate-100 rounded-lg p-0.5">
+        <div className="flex bg-slate-100 rounded-lg p-0.5" role="group" aria-label="Requirement filter">
           <button
+            type="button"
+            aria-pressed={filter === "all"}
             onClick={() => setFilter("all")}
             className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
               filter === "all"
@@ -208,6 +211,8 @@ export default function RequirementsChecklist({ requirements }: RequirementsChec
             All
           </button>
           <button
+            type="button"
+            aria-pressed={filter === "incomplete"}
             onClick={() => setFilter("incomplete")}
             className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
               filter === "incomplete"
@@ -218,6 +223,8 @@ export default function RequirementsChecklist({ requirements }: RequirementsChec
             Incomplete
           </button>
           <button
+            type="button"
+            aria-pressed={filter === "complete"}
             onClick={() => setFilter("complete")}
             className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
               filter === "complete"

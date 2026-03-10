@@ -65,11 +65,12 @@ export default function ExploreClassesSidebar() {
           Explore Upcoming Classes
         </h2>
         <div className="relative">
-          <FiSearch className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <FiSearch className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" aria-hidden="true" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            aria-label="Search upcoming classes by course, professor, or term"
             placeholder="Search by course, prof, or term"
             className="w-full rounded-full border border-slate-200 bg-slate-50 pl-9 pr-3 py-2 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white focus:border-blue-500 transition-colors"
           />

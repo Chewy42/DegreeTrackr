@@ -209,11 +209,13 @@ export default function SettingsPage() {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={fetchPreferences}
                 disabled={loadState === "loading"}
+                aria-busy={loadState === "loading" ? true : undefined}
                 className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-text-primary ring-1 ring-slate-200 shadow-sm transition-colors duration-150 hover:bg-slate-50 disabled:opacity-50"
               >
-                <FiRefreshCw className={`text-sm ${loadState === "loading" ? "animate-spin" : ""}`} />
+                <FiRefreshCw className={`text-sm ${loadState === "loading" ? "animate-spin" : ""}`} aria-hidden="true" />
                 Refresh
               </button>
             </div>
@@ -239,20 +241,20 @@ export default function SettingsPage() {
                         <div className="text-xs text-text-secondary">{config.description}</div>
                       </div>
                       {savingField === config.id && (
-                        <div className="flex items-center gap-1.5 text-xs text-blue-600">
-                          <FiRefreshCw className="text-sm animate-spin" />
+                        <div role="status" aria-live="polite" className="flex items-center gap-1.5 text-xs text-blue-600">
+                          <FiRefreshCw className="text-sm animate-spin" aria-hidden="true" />
                           Saving…
                         </div>
                       )}
                       {successField === config.id && (
-                        <div className="flex items-center gap-1.5 text-xs text-green-600">
-                          <FiCheck className="text-sm" />
+                        <div role="status" aria-live="polite" className="flex items-center gap-1.5 text-xs text-green-600">
+                          <FiCheck className="text-sm" aria-hidden="true" />
                           Saved
                         </div>
                       )}
                       {saveErrorField === config.id && (
                         <div className="flex items-center gap-1.5 text-xs text-red-600" role="alert">
-                          <FiAlertCircle className="text-sm" />
+                          <FiAlertCircle className="text-sm" aria-hidden="true" />
                           Save failed
                         </div>
                       )}
@@ -263,6 +265,8 @@ export default function SettingsPage() {
                         return (
                           <button
                             key={option.value}
+                            type="button"
+                            aria-pressed={isSelected}
                             onClick={() => updatePreference(config.id, option.value)}
                             disabled={savingField !== null}
                             className={[
@@ -295,10 +299,11 @@ export default function SettingsPage() {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={signOut}
                 className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-danger bg-red-50 hover:bg-red-100 transition-colors duration-150"
               >
-                <FiLogOut className="text-lg" />
+                <FiLogOut className="text-lg" aria-hidden="true" />
                 Sign Out
               </button>
             </div>

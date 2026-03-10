@@ -167,7 +167,7 @@ export default function CreditBreakdownChart({
             {viewMode === "status" ? "By completion status" : "By requirement category"}
           </p>
         </div>
-        <div className="flex bg-slate-100 rounded-lg p-0.5">
+        <div className="flex bg-slate-100 rounded-lg p-0.5" role="group" aria-label="Credit breakdown view mode">
           <button
             type="button"
             aria-pressed={viewMode === "status"}

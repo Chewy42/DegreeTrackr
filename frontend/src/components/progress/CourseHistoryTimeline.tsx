@@ -120,7 +120,7 @@ export default function CourseHistoryTimeline({ courses }: CourseHistoryTimeline
       </div>
 
       {/* Term selector */}
-      <div className="flex items-center justify-between mb-4 bg-slate-50 rounded-xl p-2">
+      <div className="flex items-center justify-between mb-4 bg-slate-50 rounded-xl p-2" role="group" aria-label="Course history term navigation">
         <button
           type="button"
           onClick={() => setSelectedTermIndex((prev) => Math.max(prev - 1, 0))}
@@ -150,7 +150,7 @@ export default function CourseHistoryTimeline({ courses }: CourseHistoryTimeline
       </div>
 
       {/* Timeline dots */}
-      <div className="flex items-center justify-center gap-1.5 mb-4">
+      <div className="flex items-center justify-center gap-1.5 mb-4" role="group" aria-label="Jump to term">
         {termGroups.slice(0, 10).map((term, index) => (
           <button
             key={index}

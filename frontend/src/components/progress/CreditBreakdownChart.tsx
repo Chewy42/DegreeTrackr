@@ -169,6 +169,8 @@ export default function CreditBreakdownChart({
         </div>
         <div className="flex bg-slate-100 rounded-lg p-0.5">
           <button
+            type="button"
+            aria-pressed={viewMode === "status"}
             onClick={() => setViewMode("status")}
             className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
               viewMode === "status"
@@ -179,6 +181,8 @@ export default function CreditBreakdownChart({
             Status
           </button>
           <button
+            type="button"
+            aria-pressed={viewMode === "category"}
             onClick={() => setViewMode("category")}
             className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
               viewMode === "category"

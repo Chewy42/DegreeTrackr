@@ -79,11 +79,12 @@ export default function ClassSearchSidebar({
         </div>
         
         <div className="relative group">
-          <FiSearch className="absolute left-3 top-2.5 text-slate-400 group-focus-within:text-blue-500 w-4 h-4 transition-colors" />
+          <FiSearch className="absolute left-3 top-2.5 text-slate-400 group-focus-within:text-blue-500 w-4 h-4 transition-colors" aria-hidden="true" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            aria-label="Search classes by code, title, or professor"
             placeholder="Search by code, title, or prof..."
             className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all"
           />
@@ -92,6 +93,7 @@ export default function ClassSearchSidebar({
         <div className="flex gap-2">
           <div className="relative flex-1 group">
             <select
+              aria-label="Filter classes by subject"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               className="w-full appearance-none px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:bg-white transition-all pr-8 cursor-pointer"
@@ -101,7 +103,7 @@ export default function ClassSearchSidebar({
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
-            <FiChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 pointer-events-none w-4 h-4 transition-colors" />
+            <FiChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 pointer-events-none w-4 h-4 transition-colors" aria-hidden="true" />
           </div>
           
           {/* Future: More filters toggle */}

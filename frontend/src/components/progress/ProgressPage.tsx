@@ -204,7 +204,7 @@ export default function ProgressPage() {
             onClick={fetchProgress}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-500 transition-colors"
           >
-            <FiRefreshCw className="text-base" />
+            <FiRefreshCw className="text-base" aria-hidden="true" />
             Retry
           </button>
         </div>
@@ -226,10 +226,11 @@ export default function ProgressPage() {
           </p>
         </div>
         <button
+          type="button"
           onClick={fetchProgress}
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
         >
-          <FiRefreshCw className="text-base" />
+          <FiRefreshCw className="text-base" aria-hidden="true" />
           Refresh Data
         </button>
       </div>

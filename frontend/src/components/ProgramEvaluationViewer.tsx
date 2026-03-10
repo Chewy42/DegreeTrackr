@@ -179,16 +179,16 @@ export default function ProgramEvaluationViewer() {
       {replaceModalOpen ? (
         <div className="fixed inset-0 z-50 bg-black/40 overflow-y-auto">
           <div className="min-h-full flex items-start justify-center px-4 py-8">
-            <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200 p-6 my-auto">
+            <div role="dialog" aria-modal="true" aria-labelledby="replace-program-evaluation-title" className="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200 p-6 my-auto">
               <button
                 type="button"
                 onClick={() => setReplaceModalOpen(false)}
                 className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full cursor-pointer transition-transform duration-150 hover:scale-110 active:scale-95 z-10"
                 aria-label="Close"
               >
-                <FiX className="text-lg text-text-primary" />
+                <FiX className="text-lg text-text-primary" aria-hidden="true" />
               </button>
-              <h2 className="text-lg font-semibold mb-4">Replace Program Evaluation</h2>
+              <h2 id="replace-program-evaluation-title" className="text-lg font-semibold mb-4">Replace Program Evaluation</h2>
               <p className="text-sm text-slate-500 mb-6">
                 Uploading a new evaluation will reset your onboarding progress and chat history.
               </p>
@@ -203,7 +203,7 @@ export default function ProgramEvaluationViewer() {
 
       {modalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-8">
-          <div className="relative w-full max-w-5xl rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200">
+          <div role="dialog" aria-modal="true" aria-labelledby="program-evaluation-preview-title" className="relative w-full max-w-5xl rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200">
             <button
               type="button"
               onClick={() => {
@@ -213,10 +213,10 @@ export default function ProgramEvaluationViewer() {
               className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full cursor-pointer transition-transform duration-150 hover:scale-110 active:scale-95"
               aria-label="Close"
             >
-              <FiX className="text-lg text-text-primary" />
+              <FiX className="text-lg text-text-primary" aria-hidden="true" />
             </button>
             <div className="px-5 pt-5 pb-4 sm:px-7 sm:pt-6 sm:pb-5">
-              <div className="text-sm font-semibold text-text-primary">{fileLabel}</div>
+              <div id="program-evaluation-preview-title" className="text-sm font-semibold text-text-primary">{fileLabel}</div>
               <div className="text-xs text-text-secondary mt-0.5">
                 {parsed?.email ? `For ${parsed.email}` : "Signed-in account"}
               </div>

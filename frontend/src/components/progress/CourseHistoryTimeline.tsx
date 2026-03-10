@@ -122,11 +122,13 @@ export default function CourseHistoryTimeline({ courses }: CourseHistoryTimeline
       {/* Term selector */}
       <div className="flex items-center justify-between mb-4 bg-slate-50 rounded-xl p-2">
         <button
+          type="button"
           onClick={() => setSelectedTermIndex((prev) => Math.max(prev - 1, 0))}
           disabled={selectedTermIndex <= 0}
+          aria-label="Previous term"
           className="p-1.5 rounded-lg hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
-          <FiChevronLeft className="text-slate-600" />
+          <FiChevronLeft className="text-slate-600" aria-hidden="true" />
         </button>
 
         <div className="text-center">
@@ -137,20 +139,25 @@ export default function CourseHistoryTimeline({ courses }: CourseHistoryTimeline
         </div>
 
         <button
+          type="button"
           onClick={() => setSelectedTermIndex((prev) => Math.min(prev + 1, termGroups.length - 1))}
           disabled={selectedTermIndex >= termGroups.length - 1}
+          aria-label="Next term"
           className="p-1.5 rounded-lg hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
-          <FiChevronRight className="text-slate-600" />
+          <FiChevronRight className="text-slate-600" aria-hidden="true" />
         </button>
       </div>
 
       {/* Timeline dots */}
       <div className="flex items-center justify-center gap-1.5 mb-4">
-        {termGroups.slice(0, 10).map((_, index) => (
+        {termGroups.slice(0, 10).map((term, index) => (
           <button
             key={index}
+            type="button"
             onClick={() => setSelectedTermIndex(index)}
+            aria-label={`Jump to ${term.display}`}
+            aria-pressed={index === selectedTermIndex}
             className={`w-2 h-2 rounded-full transition-all ${
               index === selectedTermIndex
                 ? "bg-blue-500 w-4"

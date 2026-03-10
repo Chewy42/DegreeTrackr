@@ -75,6 +75,7 @@ export default function Sidebar() {
               key={item.to}
               to={item.to}
               aria-current={isActive ? "page" : undefined}
+              aria-label={collapsed ? item.label : undefined}
               className={[
                 "group relative flex items-center gap-3 py-3 text-sm font-medium transition-colors duration-200",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-blue-600",

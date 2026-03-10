@@ -122,11 +122,11 @@ export default function ClassSearchSidebar({
             <span className="sr-only">Searching for classes…</span>
           </div>
         ) : error ? (
-          <div className="text-center py-8 text-red-500 text-sm">
+          <div role="alert" aria-live="assertive" className="text-center py-8 text-red-500 text-sm">
             {error}
           </div>
         ) : results.length === 0 ? (
-          <div className="text-center py-8 text-slate-400 text-sm">
+          <div role="status" aria-live="polite" className="text-center py-8 text-slate-400 text-sm">
             No classes found matching your criteria.
           </div>
 	        ) : (

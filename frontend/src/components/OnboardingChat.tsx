@@ -282,6 +282,14 @@ export default function OnboardingChat() {
                 </div>
               )}
 
+              {loading && (
+                <div role="status" aria-live="polite" className="pl-16">
+                  <p className="text-sm text-slate-600 bg-slate-100 border border-slate-200 rounded-lg px-4 py-3">
+                    Saving your answer…
+                  </p>
+                </div>
+              )}
+
               {/* Options as Buttons */}
               <div className="space-y-3 pl-16">
                 {currentQuestion.options.map((option) => (

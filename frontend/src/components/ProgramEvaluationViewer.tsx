@@ -108,7 +108,7 @@ export default function ProgramEvaluationViewer() {
       <div className="rounded-2xl border border-slate-200/70 bg-white shadow-sm p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600" aria-hidden="true">
               <FiFileText className="text-xl" />
             </div>
             <div>
@@ -121,9 +121,10 @@ export default function ProgramEvaluationViewer() {
           <button
             type="button"
             onClick={fetchParsed}
+            aria-busy={loadState === "loading" ? true : undefined}
             className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-text-primary ring-1 ring-slate-200 shadow-sm transition-colors duration-150 hover:bg-slate-50"
           >
-            <FiRefreshCw className="text-sm" />
+            <FiRefreshCw className="text-sm" aria-hidden="true" />
             Refresh
           </button>
         </div>
@@ -155,7 +156,7 @@ export default function ProgramEvaluationViewer() {
               onClick={() => setReplaceModalOpen(true)}
               className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold bg-white text-slate-700 ring-1 ring-slate-200 shadow-sm hover:bg-slate-50 transition-colors duration-150"
             >
-              <FiUploadCloud className="text-sm" />
+              <FiUploadCloud className="text-sm" aria-hidden="true" />
               Replace PDF
             </button>
             <button
@@ -169,7 +170,7 @@ export default function ProgramEvaluationViewer() {
                   : "bg-blue-200 text-blue-50 cursor-not-allowed",
               ].join(" ")}
             >
-              <FiEye className="text-sm" />
+              <FiEye className="text-sm" aria-hidden="true" />
               View PDF
             </button>
           </div>

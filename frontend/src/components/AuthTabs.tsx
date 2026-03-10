@@ -13,13 +13,15 @@ export default function AuthTabs({ mode, onChange }: AuthTabsProps) {
 	];
 
 	return (
-		<div className={'bg-surface-muted/80 border border-slate-200/80 rounded-full p-1.5 flex items-center gap-1'}>
+		<div role="tablist" aria-label="Authentication mode" className={'bg-surface-muted/80 border border-slate-200/80 rounded-full p-1.5 flex items-center gap-1'}>
 			{entries.map(({ key, label }) => {
 				const active = mode === key;
 				return (
 					<button
 						key={key}
 						type="button"
+						role="tab"
+						aria-selected={active}
 						onClick={() => onChange(key)}
 						className={
 							'flex-1 rounded-full text-sm font-medium px-3 py-2.5 transition-colors duration-150 ' +

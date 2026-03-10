@@ -254,6 +254,7 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 						type="button"
 						onClick={handleUpload}
 						disabled={!hasSelectedFile || isUploading}
+						aria-busy={isUploading ? true : undefined}
 						className={[
 							"inline-flex items-center justify-center gap-2 rounded-xl px-8 py-4 text-base sm:text-lg font-bold shadow-sm transition-all duration-200 w-full sm:w-auto",
 							isUploading
@@ -263,7 +264,7 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 									: "bg-blue-200 text-blue-50 cursor-not-allowed",
 						].join(" ")}
 					>
-						{isUploading && <FiLoader className="animate-spin text-xl" />}
+						{isUploading && <FiLoader className="animate-spin text-xl" aria-hidden="true" />}
 						{isUploading ? "Uploading..." : "Upload PDF"}
 					</button>
 					<button
@@ -277,7 +278,7 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 								: "bg-slate-100 text-slate-400 cursor-not-allowed",
 						].join(" ")}
 					>
-						<FiEye className="mr-3 text-xl" />
+						<FiEye className="mr-3 text-xl" aria-hidden="true" />
 						Open program evaluation
 					</button>
 				</div>

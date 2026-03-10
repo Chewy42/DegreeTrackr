@@ -95,18 +95,18 @@ export default function ExploreClassesSidebar() {
         {!loading && !error && filtered.map((cls) => (
           <div
             key={cls.id}
-            className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50/60 hover:border-blue-200 transition-colors p-3 text-xs cursor-pointer"
+            className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50/60 hover:border-blue-200 transition-colors p-3 text-xs"
           >
             <div className="flex items-center justify-between mb-1">
               <span className="font-semibold text-slate-800 flex items-center gap-1">
-                <FiBookOpen className="h-3.5 w-3.5 text-blue-500" />
+                <FiBookOpen className="h-3.5 w-3.5 text-blue-500" aria-hidden="true" />
                 {cls.code}
               </span>
               <span className="text-[10px] text-slate-500">{cls.term}</span>
             </div>
             <div className="text-[11px] text-slate-600 mb-1 line-clamp-2">{cls.title}</div>
             <div className="flex items-center gap-1 text-[11px] text-slate-500">
-              <FiUser className="h-3 w-3" />
+              <FiUser className="h-3 w-3" aria-hidden="true" />
               <span>{cls.professor}</span>
             </div>
           </div>

@@ -1,7 +1,7 @@
 # DegreeTrackr - Education Tracking Platform
 
 ## Overview
-DegreeTrackr is a full-stack web application for Chapman University students to track their education and courses. The application features a React frontend with Material-UI and a Flask Python backend with JWT authentication.
+DegreeTrackr is a React + TypeScript frontend for Chapman University students to track education and courses, primarily backed by Convex + Clerk with legacy Flask flows retained only where needed.
 
 ## Project Architecture
 
@@ -9,21 +9,19 @@ DegreeTrackr is a full-stack web application for Chapman University students to 
 - **Framework**: React 18 with TypeScript
 - **Build Tool**: Vite 5
 - **Styling**: Material-UI (MUI) + Tailwind CSS
-- **Port**: 5173 (mapped to port 80 in Replit deployments)
-- **Features**: 
-  - User authentication (sign-in/sign-up)
-  - Chapman.edu email validation
-  - JWT token management
+- **Port**: 3333 (mapped to port 80 in Replit deployments)
+- **Features**:
+  - User authentication (Clerk + legacy fallback)
   - User preferences storage
+  - Progress and scheduling tools
 
 ### Backend
-- **Framework**: Flask (Python 3.11)
-- **Port**: 5000 (internal, proxied by Vite)
+- **Framework**: Flask (Python 3.11, legacy)
+- **Port**: 5000 (optional, legacy-only endpoints)
 - **Features**:
-  - RESTful API endpoints
+  - RESTful API endpoints used by migration-carryover paths
   - JWT authentication
   - CORS enabled
-  - Chapman.edu email domain restriction
 
 ### API Endpoints
 - `GET /health` - Health check endpoint
@@ -36,10 +34,8 @@ DegreeTrackr is a full-stack web application for Chapman University students to 
 ### Running the Application
 Use Replit's Run button workflows (or run the commands manually):
 
-- **Dev** → `npm run dev` (default). Runs Flask on port 5000 and Vite on 5173.
-- **DevDocker** → `npm run dev:docker`. Spins up Docker Compose, mapping host port 5173 to container port 80 so the frontend mimics the production ingress while the backend still listens on 5000.
-
-Both options proxy `/api/*` to the backend.
+- **Dev** → `npm run dev` (default). Runs Vite on `3333`.
+- **Backend services**: start with `npm run dev:server` only when needed.
 
 ### Project Structure
 ```
@@ -65,14 +61,13 @@ Both options proxy `/api/*` to the backend.
 ## Configuration
 
 ### Frontend Configuration
-- API base URL: `/api` (proxied to backend)
+- API base URL: `/api` remains available for legacy routes; Convex is the default data layer
 - Host: `0.0.0.0` (accessible via Replit preview)
-- Port: `CLIENT_PORT` env (defaults to `5173`, overridden to `80` inside Docker while still exposed on host `5173`)
-- Proxy target: `VITE_PROXY_TARGET` / `SERVER_URL` (defaults to `http://127.0.0.1:5000`, set to `http://backend:5000` in Docker)
+- Port: `CLIENT_PORT` env (defaults to `3333`, exposed as port `80` in Replit)
 
 ### Backend Configuration
-- Host: `0.0.0.0` (bound for both local development and Replit)
-- Port: `5000`
+- Host: `0.0.0.0`
+- Port: `5000` (legacy backend only)
 - JWT Secret: Configured via `JWT_SECRET_KEY` environment variable (defaults to dev key)
 
 ## Dependencies
@@ -97,11 +92,8 @@ Both options proxy `/api/*` to the backend.
 - vite - Build tool
 - typescript - Type safety
 
-### Root
-- concurrently - Run multiple commands concurrently
-
 ## Deployment
-The application is configured for autoscale deployment on Replit, running both frontend and backend as a single service.
+The frontend is deployment-first and runs as a static server process (`cd frontend && npm run preview`) with optional legacy backend processes managed separately.
 
 ## Recent Changes
 - 2025-12-04: Major robustness improvements to prevent crashes

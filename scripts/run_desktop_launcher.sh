@@ -6,10 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="$REPO_ROOT/.env"
 START_SCRIPT="$REPO_ROOT/scripts/start_desktop_dev.sh"
-DEFAULT_FRONTEND_PORT=5173
+DEFAULT_FRONTEND_PORT=3333
 MAX_FRONTEND_PORT=5273
-DEFAULT_BACKEND_PORT=5000
-MAX_BACKEND_PORT=5099
 STARTUP_TIMEOUT_SECONDS=120
 
 show_alert() {
@@ -100,33 +98,8 @@ resolve_frontend_port() {
   exit 1
 }
 
-resolve_backend_port() {
-  local candidate="${SERVER_PORT:-$DEFAULT_BACKEND_PORT}"
-
-  if [[ ! "$candidate" =~ ^[0-9]+$ ]] || (( candidate < 1 || candidate > 65535 )); then
-    candidate="$DEFAULT_BACKEND_PORT"
-  fi
-
-  if ! port_is_listening "$candidate"; then
-    printf '%s\n' "$candidate"
-    return 0
-  fi
-
-  local fallback
-  for (( fallback = DEFAULT_BACKEND_PORT + 1; fallback <= MAX_BACKEND_PORT; fallback += 1 )); do
-    if ! port_is_listening "$fallback"; then
-      printf '%s\n' "$fallback"
-      return 0
-    fi
-  done
-
-  show_alert "EduTrackr launcher blocked" "Could not find a free backend port between ${DEFAULT_BACKEND_PORT} and ${MAX_BACKEND_PORT}."
-  exit 1
-}
-
 launch_terminal_server() {
   local frontend_port="$1"
-  local backend_port="$2"
   local terminal_command
 
   if [[ ! -x "$START_SCRIPT" ]]; then
@@ -134,8 +107,8 @@ launch_terminal_server() {
     exit 1
   fi
 
-  printf -v terminal_command 'cd %q && %q %q %q' \
-    "$REPO_ROOT" "$START_SCRIPT" "$frontend_port" "$backend_port"
+  printf -v terminal_command 'cd %q && %q %q' \
+    "$REPO_ROOT" "$START_SCRIPT" "$frontend_port"
 
   osascript - "$terminal_command" <<'APPLESCRIPT'
 on run argv
@@ -164,13 +137,11 @@ wait_for_frontend() {
 }
 
 main() {
-  local backend_port
   local frontend_port
 
-  backend_port="$(resolve_backend_port)"
   frontend_port="$(resolve_frontend_port)"
 
-  launch_terminal_server "$frontend_port" "$backend_port"
+  launch_terminal_server "$frontend_port"
   wait_for_frontend "http://127.0.0.1:${frontend_port}"
 }
 

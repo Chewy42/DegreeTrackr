@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "cd frontend && npm run dev",
-    "dev:server": "cd backend && python -m flask --app app.main:app run --host=0.0.0.0 --port=5000",
     "preview": "cd frontend && npm run preview",
     "build": "cd frontend && npm i && npm run build"
   },

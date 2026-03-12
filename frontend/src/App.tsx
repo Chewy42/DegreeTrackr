@@ -1,5 +1,5 @@
 import React from "react";
-import { useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { AuthenticateWithRedirectCallback } from "@clerk/react";
 import { useAuth } from "./auth/AuthContext";
 import { CLERK_CALLBACK_PATH } from "./auth/clerkAuth";
@@ -24,6 +24,7 @@ export default function App() {
     loading,
     error,
     preferences,
+    preferencesReady,
     setMode,
     handleGoogleAuth,
     pendingEmail,
@@ -134,7 +135,24 @@ export default function App() {
     );
   }
 
+  const authenticatedFallbackRoute =
+    preferences.landingView === "schedule"
+      ? "/schedule-gen-home"
+      : preferences.landingView === "explore"
+        ? "/exploration-assistant"
+        : "/";
+
   if (sessionState === "authenticated") {
+    if (!preferencesReady) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-surface-muted text-text-primary px-4">
+          <div className="text-sm font-medium tracking-[0.025em] text-center animate-pulse">
+            Loading your DegreeTrackr setup...
+          </div>
+        </div>
+      );
+    }
+
     if (!preferences.hasProgramEvaluation) {
       return (
         <div className="flex h-screen w-screen overflow-hidden bg-surface-muted text-text-primary">
@@ -203,29 +221,7 @@ export default function App() {
       );
     }
 
-    let title = "Welcome to DegreeTrackr";
-    let subtitle = "You are signed in. Next: connect session state and onboarding.";
-    let body: React.ReactNode = (
-      <div className="text-sm text-text-secondary text-center py-1">
-        This placeholder view confirms authentication flow is working.
-      </div>
-    );
-
-    return (
-      <div className="flex h-screen w-screen overflow-hidden bg-surface-muted text-text-primary">
-        <Sidebar />
-        <main className="flex-1 h-full overflow-y-auto p-4 min-w-0">
-          <div className="min-h-full flex items-center justify-center">
-            <AuthCard
-              title={title}
-              subtitle={subtitle}
-            >
-              {body}
-            </AuthCard>
-          </div>
-        </main>
-      </div>
-    );
+    return <Navigate to={authenticatedFallbackRoute} replace />;
   }
 
   return (

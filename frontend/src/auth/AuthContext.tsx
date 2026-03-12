@@ -36,6 +36,7 @@ export type AuthContextValue = {
   loading: boolean
   error: string | null
   preferences: UserPreferences
+  preferencesReady: boolean
   jwt: string | null
   pendingEmail: string | null
   setMode: (mode: AuthMode) => void
@@ -234,10 +235,13 @@ export function AuthProvider({ children }: Props) {
   const [jwt, setJwt] = useState<string | null>(null)
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
 
+  const convexEnabled = isConvexFeatureEnabled()
   const convexUserPrefs = useQuery(
     convexApi.profile.getCurrentUserPreferences,
-    isConvexFeatureEnabled() ? {} : 'skip'
+    convexEnabled ? {} : 'skip'
   )
+
+  const preferencesReady = !convexEnabled || convexUserPrefs !== undefined || Object.keys(preferences).length > 0
 
   const persistJwt = useCallback((token: string | null) => {
     setJwt(token)
@@ -516,6 +520,7 @@ export function AuthProvider({ children }: Props) {
       loading,
       error,
       preferences,
+      preferencesReady,
       jwt,
       pendingEmail,
       setMode,
@@ -528,7 +533,7 @@ export function AuthProvider({ children }: Props) {
       mergePreferences,
       retryBackendConnection,
     }),
-    [sessionState, mode, auth, loading, error, preferences, jwt, pendingEmail, handleGoogleAuth, mergePreferences, signOut, refreshPreferences, retryBackendConnection]
+    [sessionState, mode, auth, loading, error, preferences, preferencesReady, jwt, pendingEmail, handleGoogleAuth, mergePreferences, signOut, refreshPreferences, retryBackendConnection]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -21,6 +21,7 @@ const baseContext = {
   loading: false,
   error: null,
   preferences: {},
+  preferencesReady: true,
   jwt: null,
   pendingEmail: null,
   setMode: vi.fn(),
@@ -89,5 +90,33 @@ describe('App auth entry point', () => {
     expect(html).toContain('Completing Clerk callback')
     expect(html).toContain('Finishing your Google sign-in')
     expect(html).toContain('clerk-captcha')
+  })
+
+  it('waits for preferences before showing first-run authenticated surfaces', () => {
+    mockUseAuth.mockReturnValue({
+      ...baseContext,
+      sessionState: 'authenticated',
+      preferencesReady: false,
+      preferences: {},
+    })
+
+    const html = renderApp('/')
+
+    expect(html).toContain('Loading your DegreeTrackr setup...')
+    expect(html).not.toContain('Upload your program evaluation')
+  })
+
+  it('does not render the old authenticated placeholder on unknown routes', () => {
+    mockUseAuth.mockReturnValue({
+      ...baseContext,
+      sessionState: 'authenticated',
+      preferencesReady: true,
+      preferences: { hasProgramEvaluation: true, onboardingComplete: true, landingView: 'dashboard' },
+    })
+
+    const html = renderApp('/unknown-route')
+
+    expect(html).not.toContain('This placeholder view confirms authentication flow is working.')
+    expect(html).not.toContain('Welcome to DegreeTrackr')
   })
 })

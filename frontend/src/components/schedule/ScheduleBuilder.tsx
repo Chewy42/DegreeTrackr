@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiAlertTriangle, FiCheckCircle, FiInfo } from 'react-icons/fi';
-import { validateSchedule, getUserRequirements, generateAutoSchedule, getClassById, createScheduleSnapshot, listScheduleSnapshots, deleteScheduleSnapshot } from '../../lib/scheduleApi';
+import { deriveRequirementsSummaryFromProgramEvaluation, validateScheduledClassesLocally, generateAutoSchedule, getClassById, createScheduleSnapshot, listScheduleSnapshots, deleteScheduleSnapshot } from '../../lib/scheduleApi';
 import {
 	  ScheduledClass,
 	  ClassSection,
@@ -18,6 +18,7 @@ import ScheduleImpactModal from './ScheduleImpactModal';
 import SnapshotManagerModal from './SnapshotManagerModal';
 import { useAuth } from '../../auth/AuthContext';
 import { usePageTitle } from '../../hooks/usePageTitle';
+import { convexApi, getConvexClient } from '../../lib/convex';
 import { FiTrendingUp, FiCpu, FiLoader, FiSave } from 'react-icons/fi';
 
 export default function ScheduleBuilder() {
@@ -44,16 +45,36 @@ export default function ScheduleBuilder() {
 	const [snapshotError, setSnapshotError] = useState<string | null>(null);
   const [requirementsError, setRequirementsError] = useState<string | null>(null);
 
-  // Load user requirements on mount
+  // Load user requirements from the Convex-backed current program evaluation.
   useEffect(() => {
-    if (jwt) {
-      getUserRequirements(jwt)
-        .then(setBaseRequirements)
-        .catch((err) => {
-          console.error('Failed to load degree requirements:', err);
-          setRequirementsError('Could not load your degree requirements. Schedule suggestions may be incomplete.');
-        });
-    }
+    if (!jwt) return;
+
+    const loadRequirements = async () => {
+      try {
+        const client = getConvexClient();
+        if (!client) {
+          setRequirementsError('Convex must be configured to project requirement impact.');
+          setBaseRequirements(null);
+          return;
+        }
+
+        const evaluation = await client.query(convexApi.evaluations.getCurrentProgramEvaluation, {});
+        const summary = deriveRequirementsSummaryFromProgramEvaluation(evaluation);
+        setBaseRequirements(summary);
+
+        if (!summary) {
+          setRequirementsError('Upload a current program evaluation to unlock projected requirement impact.');
+        } else {
+          setRequirementsError(null);
+        }
+      } catch (err) {
+        console.error('Failed to load degree requirements:', err);
+        setRequirementsError('Could not load your degree requirements. Schedule suggestions may be incomplete.');
+        setBaseRequirements(null);
+      }
+    };
+
+    void loadRequirements();
   }, [jwt]);
 
   // Derived state for quick lookups
@@ -64,35 +85,27 @@ export default function ScheduleBuilder() {
     return acc;
   }, {} as Record<string, string>);
 
-  // Validate whenever classes change
+  // Validate whenever classes change using local schedule data.
   useEffect(() => {
-    const validate = async () => {
-      if (scheduledClasses.length === 0) {
-        setValidation({ valid: true, conflicts: [], totalCredits: 0, warnings: [] });
-        return;
+    if (scheduledClasses.length === 0) {
+      setValidation({ valid: true, conflicts: [], totalCredits: 0, warnings: [] });
+      return;
+    }
+
+    const result = validateScheduledClassesLocally(scheduledClasses);
+
+    // Add client-side warnings for classes that don't count
+    const requirementWarnings: string[] = [];
+    scheduledClasses.forEach(cls => {
+      if (cls.requirementsSatisfied.length === 0) {
+        requirementWarnings.push(`Class ${cls.code} does not satisfy any known degree requirements.`);
       }
+    });
 
-      try {
-        const result = await validateSchedule(scheduledClasses.map(c => c.id));
-
-        // Add client-side warnings for classes that don't count
-        const requirementWarnings: string[] = [];
-        scheduledClasses.forEach(cls => {
-          if (cls.requirementsSatisfied.length === 0) {
-            requirementWarnings.push(`Class ${cls.code} does not satisfy any known degree requirements.`);
-          }
-        });
-
-        setValidation({
-          ...result,
-          warnings: [...result.warnings, ...requirementWarnings],
-        });
-      } catch (err) {
-        console.error('Validation failed:', err);
-      }
-    };
-
-    validate();
+    setValidation({
+      ...result,
+      warnings: [...result.warnings, ...requirementWarnings],
+    });
   }, [scheduledClasses]);
 
 	  const handleAddClass = useCallback((classData: ClassSection) => {

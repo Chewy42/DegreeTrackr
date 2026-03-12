@@ -9,18 +9,119 @@ import type {
 	  ClassSection,
 	  ClassSearchParams,
 	  ClassesSearchResponse,
+	  DegreeRequirement,
 	  RequirementsSummary,
 	  ScheduleValidation,
 	  StatsResponse,
 	  SubjectsResponse,
 	  ScheduleSnapshot,
 	} from '../components/schedule/types';
+import { getActiveDays, minutesToTime, timeSlotsOverlap } from '../components/schedule/types';
 import { getConvexClient } from './convex/client';
 import { convexApi } from './convex/api';
 import type { ScheduleSnapshotResult } from './convex/api';
+import type { ProgramEvaluationPayload } from './convex';
 import { apiUrl } from './runtimeConfig';
 
 const API_BASE = apiUrl('/api');
+
+function inferRequirementType(label: string): DegreeRequirement['type'] {
+	const normalized = label.toLowerCase();
+	if (normalized.includes('major') && normalized.includes('elective')) return 'major_elective';
+	if (normalized.includes('major')) return 'major_core';
+	if (normalized.includes('minor')) return 'minor';
+	if (normalized.includes('concentration')) return 'concentration';
+	if (normalized.includes('ge') || normalized.includes('general education')) return 'ge';
+	return 'other';
+}
+
+type ParsedCreditRequirement = {
+	label?: string;
+	required?: number;
+	earned?: number;
+	in_progress?: number;
+	needed?: number;
+};
+
+export function deriveRequirementsSummaryFromProgramEvaluation(
+	payload: ProgramEvaluationPayload | null | undefined,
+): RequirementsSummary | null {
+	const rawRequirements = payload?.parsed_data?.credit_requirements;
+	if (!Array.isArray(rawRequirements)) {
+		return null;
+	}
+
+	const requirements = rawRequirements
+		.map((entry): DegreeRequirement | null => {
+			if (!entry || typeof entry !== 'object') return null;
+			const requirement = entry as ParsedCreditRequirement;
+			const label = requirement.label?.trim();
+			if (!label) return null;
+			const creditsNeeded = Math.max(0, Number(requirement.needed ?? 0));
+			return {
+				type: inferRequirementType(label),
+				label,
+				creditsNeeded,
+			};
+		})
+		.filter((entry): entry is DegreeRequirement => entry !== null);
+
+	const byType = requirements.reduce<Record<string, number>>((acc, requirement) => {
+		acc[requirement.type] = (acc[requirement.type] ?? 0) + requirement.creditsNeeded;
+		return acc;
+	}, {});
+
+	return {
+		total: requirements.reduce((sum, requirement) => sum + requirement.creditsNeeded, 0),
+		byType,
+		requirements,
+	};
+}
+
+export function validateScheduledClassesLocally(classes: ClassSection[]): ScheduleValidation {
+	const conflicts: ScheduleValidation['conflicts'] = [];
+	const warnings: string[] = [];
+	const totalCredits = classes.reduce((sum, cls) => sum + (cls.credits ?? 0), 0);
+
+	for (let i = 0; i < classes.length; i += 1) {
+		for (let j = i + 1; j < classes.length; j += 1) {
+			const classA = classes[i];
+			const classB = classes[j];
+			if (!classA || !classB) continue;
+
+			for (const day of getActiveDays(classA)) {
+				const slotsA = classA.occurrenceData.daysOccurring[day] ?? [];
+				const slotsB = classB.occurrenceData.daysOccurring[day] ?? [];
+
+				for (const slotA of slotsA) {
+					for (const slotB of slotsB) {
+						if (!timeSlotsOverlap(slotA, slotB)) continue;
+						const overlapStart = Math.max(slotA.startTime, slotB.startTime);
+						const overlapEnd = Math.min(slotA.endTime, slotB.endTime);
+						conflicts.push({
+							classId1: classA.id,
+							classId2: classB.id,
+							day,
+							timeRange: `${minutesToTime(overlapStart)} - ${minutesToTime(overlapEnd)}`,
+							message: `${classA.code} conflicts with ${classB.code} on ${day} at ${minutesToTime(overlapStart)}.`,
+						});
+					}
+				}
+			}
+		}
+	}
+
+	if (totalCredits > 18) {
+		warnings.push('Heavy schedule: more than 18 credits may be difficult to manage.');
+	}
+
+	return {
+		valid: conflicts.length === 0,
+		conflicts,
+		totalCredits,
+		warnings,
+	};
+}
 
 /**
  * Search and filter available classes.

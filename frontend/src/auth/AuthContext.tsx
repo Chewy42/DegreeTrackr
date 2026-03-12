@@ -182,6 +182,46 @@ export async function shouldRequireLegacyBridgeSetup({
   return !(await checkBackendHealth())
 }
 
+type SessionBootstrapState =
+  | 'unauthenticated'
+  | 'legacy_bridge_required'
+  | 'backend_unavailable'
+  | 'ready'
+
+export async function resolveSessionBootstrapState({
+  isConvexEnabled,
+  isSignedIn,
+  hasExplicitLegacyApiBaseUrl,
+  checkBackendHealth,
+}: LegacyBridgeGateOptions): Promise<SessionBootstrapState> {
+  if (!isSignedIn) {
+    return 'unauthenticated'
+  }
+
+  let backendHealth: boolean | undefined
+  const ensureBackendHealth = async () => {
+    if (backendHealth == null) {
+      backendHealth = await checkBackendHealth()
+    }
+
+    return backendHealth
+  }
+
+  if (
+    isConvexEnabled &&
+    !hasExplicitLegacyApiBaseUrl &&
+    !(await ensureBackendHealth())
+  ) {
+    return 'legacy_bridge_required'
+  }
+
+  if (!(await ensureBackendHealth())) {
+    return 'backend_unavailable'
+  }
+
+  return 'ready'
+}
+
 export function AuthProvider({ children }: Props) {
   const { isLoaded: clerkLoaded, isSignedIn, getToken } = useClerkAuth()
   const clerk = useClerk()
@@ -261,20 +301,21 @@ export function AuthProvider({ children }: Props) {
   }, [clearLocalSession, clerk])
 
   const syncSessionState = useCallback(async () => {
-    const isSignedInToClerk = Boolean(isSignedIn)
-    let backendHealth: boolean | undefined
-    const needsLegacyBridgeSetup = await shouldRequireLegacyBridgeSetup({
+    const bootstrapState = await resolveSessionBootstrapState({
       isConvexEnabled: isConvexFeatureEnabled(),
-      isSignedIn: isSignedInToClerk,
+      isSignedIn: Boolean(isSignedIn),
       hasExplicitLegacyApiBaseUrl: hasConfiguredLegacyApiBaseUrl(),
-      checkBackendHealth: async () => {
-        const isHealthy = await checkBackendHealth()
-        backendHealth = isHealthy
-        return isHealthy
-      },
+      checkBackendHealth,
     })
 
-    if (needsLegacyBridgeSetup) {
+    if (bootstrapState === 'unauthenticated') {
+      clearLocalSession()
+      setError(null)
+      setSessionState('unauthenticated')
+      return
+    }
+
+    if (bootstrapState === 'legacy_bridge_required') {
       persistJwt(null)
       setPendingEmail(null)
       setError(null)
@@ -282,16 +323,8 @@ export function AuthProvider({ children }: Props) {
       return
     }
 
-    const isHealthy = backendHealth ?? await checkBackendHealth()
-    if (!isHealthy) {
+    if (bootstrapState === 'backend_unavailable') {
       setSessionState('backend_unavailable')
-      return
-    }
-
-    if (!isSignedInToClerk) {
-      clearLocalSession()
-      setError(null)
-      setSessionState('unauthenticated')
       return
     }
 

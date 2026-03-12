@@ -162,6 +162,26 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+type LegacyBridgeGateOptions = {
+  isConvexEnabled: boolean
+  isSignedIn: boolean
+  hasExplicitLegacyApiBaseUrl: boolean
+  checkBackendHealth: () => Promise<boolean>
+}
+
+export async function shouldRequireLegacyBridgeSetup({
+  isConvexEnabled,
+  isSignedIn,
+  hasExplicitLegacyApiBaseUrl,
+  checkBackendHealth,
+}: LegacyBridgeGateOptions): Promise<boolean> {
+  if (!isConvexEnabled || !isSignedIn || hasExplicitLegacyApiBaseUrl) {
+    return false
+  }
+
+  return !(await checkBackendHealth())
+}
+
 export function AuthProvider({ children }: Props) {
   const { isLoaded: clerkLoaded, isSignedIn, getToken } = useClerkAuth()
   const clerk = useClerk()
@@ -241,17 +261,20 @@ export function AuthProvider({ children }: Props) {
   }, [clearLocalSession, clerk])
 
   const syncSessionState = useCallback(async () => {
-    const needsLegacyBridgeSetup =
-      isConvexFeatureEnabled() && !hasConfiguredLegacyApiBaseUrl()
+    const isSignedInToClerk = Boolean(isSignedIn)
+    let backendHealth: boolean | undefined
+    const needsLegacyBridgeSetup = await shouldRequireLegacyBridgeSetup({
+      isConvexEnabled: isConvexFeatureEnabled(),
+      isSignedIn: isSignedInToClerk,
+      hasExplicitLegacyApiBaseUrl: hasConfiguredLegacyApiBaseUrl(),
+      checkBackendHealth: async () => {
+        const isHealthy = await checkBackendHealth()
+        backendHealth = isHealthy
+        return isHealthy
+      },
+    })
 
     if (needsLegacyBridgeSetup) {
-      if (!isSignedIn) {
-        clearLocalSession()
-        setError(null)
-        setSessionState('unauthenticated')
-        return
-      }
-
       persistJwt(null)
       setPendingEmail(null)
       setError(null)
@@ -259,13 +282,13 @@ export function AuthProvider({ children }: Props) {
       return
     }
 
-    const isHealthy = await checkBackendHealth()
+    const isHealthy = backendHealth ?? await checkBackendHealth()
     if (!isHealthy) {
       setSessionState('backend_unavailable')
       return
     }
 
-    if (!isSignedIn) {
+    if (!isSignedInToClerk) {
       clearLocalSession()
       setError(null)
       setSessionState('unauthenticated')

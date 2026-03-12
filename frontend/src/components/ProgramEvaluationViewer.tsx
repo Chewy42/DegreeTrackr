@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FiEye, FiRefreshCw, FiFileText, FiX, FiUploadCloud } from "react-icons/fi";
 import { useAuth } from "../auth/AuthContext";
+import { convexApi, getConvexClient } from "../lib/convex";
+import type { ProgramEvaluationPayload } from "../lib/convex";
 import { apiUrl } from "../lib/runtimeConfig";
 import ProgramEvaluationUpload from "./ProgramEvaluationUpload";
 
@@ -54,25 +56,28 @@ export default function ProgramEvaluationViewer() {
     setLoadState("loading");
     setError(null);
     try {
-      const res = await fetch(apiUrl("/api/program-evaluations/parsed"), {
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-          Accept: "application/json",
-        },
-      });
+      const client = getConvexClient();
+      if (!client) {
+        throw new Error("Convex must be configured to view your program evaluation.");
+      }
 
-      if (res.status === 404) {
+      const payload: ProgramEvaluationPayload | null = await client.query(
+        convexApi.evaluations.getCurrentProgramEvaluation,
+        {},
+      );
+
+      if (!payload) {
         setParsed(null);
         setLoadState("empty");
         return;
       }
 
-      if (!res.ok) {
-        throw new Error("Unable to load program evaluation.");
-      }
-
-      const data = (await res.json()) as ParsedPayload;
-      setParsed(data);
+      setParsed({
+        email: payload.email ?? "",
+        uploaded_at: payload.uploaded_at,
+        original_filename: payload.original_filename,
+        parsed_data: payload.parsed_data as Record<string, unknown> | undefined,
+      });
       setLoadState("ready");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to load program evaluation.";

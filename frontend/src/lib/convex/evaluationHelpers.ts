@@ -18,6 +18,12 @@ export function buildLegacyProgramEvaluationPreviewUrl(jwt: string): string {
   return `${apiUrl('/api/program-evaluations')}?token=${encodeURIComponent(jwt)}`
 }
 
+export async function loadCurrentProgramEvaluation(args: {
+  getProgramEvaluation: () => Promise<ProgramEvaluationPayload | null>
+}): Promise<ProgramEvaluationPayload | null> {
+  return args.getProgramEvaluation()
+}
+
 export async function syncCurrentProgramEvaluationFromLegacy(args: {
   jwt: string
   hydrateProgramEvaluation: (args: { jwt: string; apiBaseUrl: string }) => Promise<ProgramEvaluationPayload | null>

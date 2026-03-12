@@ -8,6 +8,8 @@ DegreeTrackr ships as a Vite frontend for **Cloudflare Pages** with **Clerk** an
 - **Build command:** `npm run build`
 - **Build output directory:** `frontend/dist`
 - **Node version:** 20+ recommended
+- **Checked-in Pages config:** `wrangler.toml` (`pages_build_output_dir = \"frontend/dist\"`)
+- **Reusable release check:** `npm run check:pages-release`
 
 ## Required Cloudflare Pages environment variables
 
@@ -47,12 +49,17 @@ That ensures direct visits and refreshes on nested routes do not 404 in producti
 
 Before calling the app deploy-ready, verify:
 
-- `npm run build` succeeds from the repo root
-- `frontend/dist/_redirects` exists after build
+- `npm run check:pages-release` succeeds from the repo root
 - the deployed site boots on a nested route (for example `/settings` or `/schedule-gen-home`)
 - Clerk sign-in works in the deployed origin
 - Convex-backed reads succeed with the production `VITE_CONVEX_URL`
 - remaining bridge-backed flows use the intended `VITE_API_BASE_URL`
+
+## Deploy command
+
+Once the Cloudflare project exists and env vars are configured, the static artifact can be deployed reproducibly with:
+
+- `npx wrangler pages deploy frontend/dist --project-name <your-pages-project>`
 
 ## Current reality
 

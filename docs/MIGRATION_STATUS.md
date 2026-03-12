@@ -31,7 +31,6 @@ Some frontend utilities still point at optional `/api/*` integrations. These are
 | Explore upcoming classes | `frontend/src/components/ExploreClassesSidebar.tsx` | Still fetches `/api/classes/upcoming`; requires a replacement data source before it can be considered supported in the serverless-only repo. |
 | Schedule builder bridge | `frontend/src/lib/scheduleApi.ts` | Snapshot storage uses Convex, but class-search and generation helpers still target legacy `/api/schedule/*` endpoints. |
 | Program evaluation bridge | `frontend/src/lib/convex/evaluationHelpers.ts` | Upload and hydration helpers still expect an external `/api/program-evaluations` bridge. |
-| Orphaned chat REST helper | `frontend/src/lib/api.ts` | Still references `/api/chat/*`; keep treated as legacy until removed or replaced. |
 
 ## Repo cleanup completed in this wave
 

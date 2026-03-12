@@ -24,11 +24,12 @@ The `MigrationSource = 'legacy-flask' | 'convex'` tag still exists in Convex and
 
 ## Deferred legacy client seams
 
-Some frontend utilities still point at optional `/api/*` integrations. These are no longer part of the supported local setup and should be treated as deferred replacement work rather than active architecture.
+Some frontend utilities and Convex actions still point at optional legacy bridge integrations. These are no longer part of the supported local setup and should be treated as deferred replacement work rather than active architecture.
 
 | Area | File(s) | Current state |
 |---|---|---|
 | Explore upcoming classes | `frontend/src/components/ExploreClassesSidebar.tsx` | Still fetches `/api/classes/upcoming`; requires a replacement data source before it can be considered supported in the serverless-only repo. |
+| Explore chat bridge | `frontend/src/lib/convex/chatHelpers.ts`, `convex/chat.ts` | Session storage now lives in Convex, but sending explore chat prompts still depends on the legacy `/chat/explore` bridge. |
 | Schedule builder bridge | `frontend/src/lib/scheduleApi.ts` | Snapshot storage uses Convex, but class-search and generation helpers still target legacy `/api/schedule/*` endpoints. |
 | Program evaluation bridge | `frontend/src/lib/convex/evaluationHelpers.ts` | Upload and hydration helpers still expect an external `/api/program-evaluations` bridge. |
 

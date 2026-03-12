@@ -72,7 +72,7 @@ resolve_frontend_port() {
   fi
 
   if [[ ! "$candidate" =~ ^[0-9]+$ ]] || (( candidate < 1 || candidate > 65535 )); then
-    show_alert "EduTrackr launcher configuration error" "CLIENT_PORT must be a number between 1 and 65535. Falling back ports are not allowed because Vite uses strictPort."
+    show_alert "DegreeTrackr launcher configuration error" "CLIENT_PORT must be a number between 1 and 65535. Falling back ports are not allowed because Vite uses strictPort."
     exit 1
   fi
 
@@ -82,7 +82,7 @@ resolve_frontend_port() {
   fi
 
   if [[ -n "$explicit_source" ]]; then
-    show_alert "EduTrackr launcher blocked" "Frontend port ${candidate} from ${explicit_source} CLIENT_PORT is already in use. Choose a different CLIENT_PORT before relaunching."
+    show_alert "DegreeTrackr launcher blocked" "Frontend port ${candidate} from ${explicit_source} CLIENT_PORT is already in use. Choose a different CLIENT_PORT before relaunching."
     exit 1
   fi
 
@@ -94,7 +94,7 @@ resolve_frontend_port() {
     fi
   done
 
-  show_alert "EduTrackr launcher blocked" "Could not find a free frontend port between ${DEFAULT_FRONTEND_PORT} and ${MAX_FRONTEND_PORT}."
+  show_alert "DegreeTrackr launcher blocked" "Could not find a free frontend port between ${DEFAULT_FRONTEND_PORT} and ${MAX_FRONTEND_PORT}."
   exit 1
 }
 
@@ -103,7 +103,7 @@ launch_terminal_server() {
   local terminal_command
 
   if [[ ! -x "$START_SCRIPT" ]]; then
-    show_alert "EduTrackr launcher configuration error" "Start script is missing or not executable: ${START_SCRIPT}"
+    show_alert "DegreeTrackr launcher configuration error" "Start script is missing or not executable: ${START_SCRIPT}"
     exit 1
   fi
 
@@ -132,7 +132,7 @@ wait_for_frontend() {
     ((attempt += 1))
   done
 
-  show_alert "EduTrackr launcher timeout" "Started Terminal, but ${frontend_url} did not respond within ${STARTUP_TIMEOUT_SECONDS} seconds. Check the new Terminal window for startup errors."
+  show_alert "DegreeTrackr launcher timeout" "Started Terminal, but ${frontend_url} did not respond within ${STARTUP_TIMEOUT_SECONDS} seconds. Check the new Terminal window for startup errors."
   return 1
 }
 

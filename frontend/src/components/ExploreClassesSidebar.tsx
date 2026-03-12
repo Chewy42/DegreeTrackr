@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FiAlertCircle, FiBookOpen, FiLoader, FiSearch, FiUser } from "react-icons/fi";
 import { useAuth } from "../auth/AuthContext";
-import { apiUrl } from "../lib/runtimeConfig";
+import { convexApi, getConvexClient, type ProgramEvaluationPayload } from "../lib/convex";
 
 type UpcomingClass = {
   id: string;
@@ -11,37 +11,73 @@ type UpcomingClass = {
   term: string;
 };
 
+type ParsedProgramEvaluationCourse = {
+  term?: string;
+  subject?: string;
+  number?: string;
+  title?: string;
+};
+
+export function deriveUpcomingClassesFromProgramEvaluation(
+  payload: ProgramEvaluationPayload | null | undefined,
+): UpcomingClass[] {
+  const rawCourses = payload?.parsed_data?.courses;
+  if (!rawCourses || typeof rawCourses !== "object") {
+    return [];
+  }
+
+  const inProgress = (rawCourses as { in_progress?: ParsedProgramEvaluationCourse[] }).in_progress;
+  if (!Array.isArray(inProgress)) {
+    return [];
+  }
+
+  return inProgress
+    .map((course, index) => {
+      const subject = course.subject?.trim() ?? "";
+      const number = course.number?.trim() ?? "";
+      const title = course.title?.trim() ?? "Untitled course";
+      const term = course.term?.trim() ?? "In progress";
+      const code = [subject, number].filter(Boolean).join(" ") || title;
+
+      return {
+        id: `${code || "course"}-${term}-${index}`,
+        code,
+        title,
+        professor: "From program evaluation",
+        term,
+      } satisfies UpcomingClass;
+    })
+    .filter((course) => course.code.length > 0 || course.title.length > 0);
+}
+
 export default function ExploreClassesSidebar() {
-  const { jwt } = useAuth();
+  const { preferences } = useAuth();
   const [query, setQuery] = useState("");
   const [classes, setClasses] = useState<UpcomingClass[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchUpcomingClasses = useCallback(async () => {
-    if (!jwt) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(apiUrl("/api/classes/upcoming"), {
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-          Accept: "application/json",
-        },
-      });
-      if (!res.ok) {
-        throw new Error(`Failed to load classes (${res.status})`);
+      const convexClient = getConvexClient();
+      if (!convexClient) {
+        setError("Upcoming class preview requires Convex to be configured.");
+        setClasses([]);
+        return;
       }
-      const data = (await res.json()) as UpcomingClass[];
-      setClasses(data);
+
+      const payload = await convexClient.query(convexApi.evaluations.getCurrentProgramEvaluation, {});
+      setClasses(deriveUpcomingClassesFromProgramEvaluation(payload));
     } catch (err) {
-      console.error("Failed to fetch upcoming classes:", err);
-      setError("Could not load classes. Please try again later.");
+      console.error("Failed to load upcoming classes from Convex:", err);
+      setError("Could not load classes from your program evaluation. Please try again later.");
       setClasses([]);
     } finally {
       setLoading(false);
     }
-  }, [jwt]);
+  }, []);
 
   useEffect(() => {
     void fetchUpcomingClasses();
@@ -116,6 +152,14 @@ export default function ExploreClassesSidebar() {
         {!loading && !error && filtered.length === 0 && classes.length > 0 && (
           <div role="status" aria-live="polite" className="text-[11px] text-slate-400 text-center mt-6">
             No matching classes found.
+          </div>
+        )}
+
+        {!loading && !error && classes.length === 0 && (
+          <div role="status" aria-live="polite" className="rounded-lg border border-slate-200 bg-slate-50 p-3 mt-4 text-[11px] text-slate-500">
+            {preferences.hasProgramEvaluation
+              ? "No in-progress courses were found in your current program evaluation yet."
+              : "Upload your program evaluation to preview your in-progress coursework here."}
           </div>
         )}
       </div>

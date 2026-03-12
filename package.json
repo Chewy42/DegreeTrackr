@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "cd frontend && npm run dev",
     "preview": "cd frontend && npm run preview",
-    "build": "cd frontend && npm i && npm run build"
+    "build": "cd frontend && npm install --include=dev && npm run build"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

@@ -28,10 +28,10 @@ Some frontend utilities and Convex actions still point at optional legacy bridge
 
 | Area | File(s) | Current state |
 |---|---|---|
-| Explore upcoming classes | `frontend/src/components/ExploreClassesSidebar.tsx` | Still fetches `/api/classes/upcoming`; requires a replacement data source before it can be considered supported in the serverless-only repo. |
+| Clerk session exchange + health gate | `frontend/src/auth/AuthContext.tsx` | Auth bootstrap still uses `/api/auth/clerk/session` and `/api/health` before the frontend can fully settle into the Convex-backed runtime. |
 | Explore chat bridge | `frontend/src/lib/convex/chatHelpers.ts`, `convex/chat.ts` | Session storage now lives in Convex, but sending explore chat prompts still depends on the legacy `/chat/explore` bridge. |
-| Schedule builder bridge | `frontend/src/lib/scheduleApi.ts` | Snapshot storage uses Convex, but class-search and generation helpers still target legacy `/api/schedule/*` endpoints. |
-| Program evaluation bridge | `frontend/src/lib/convex/evaluationHelpers.ts` | Upload and hydration helpers still expect an external `/api/program-evaluations` bridge. |
+| Schedule catalog bridge | `frontend/src/lib/scheduleApi.ts` | Requirements + validation are now serverless/local, but class search, class lookup, subjects, stats, and auto-generate still target the remaining `/api/schedule/*` subset. |
+| Program evaluation PDF bridge | `frontend/src/lib/convex/evaluationHelpers.ts`, `frontend/src/components/ProgramEvaluationUpload.tsx`, `frontend/src/components/ProgramEvaluationViewer.tsx` | Convex is now the metadata source of truth; the bridge only remains for PDF parsing/upload, preview bytes, and delete/reset flows. |
 
 ## Repo cleanup completed in this wave
 

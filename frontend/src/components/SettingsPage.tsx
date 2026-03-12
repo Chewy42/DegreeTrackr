@@ -8,7 +8,6 @@ import ProgramEvaluationViewer from "./ProgramEvaluationViewer";
 import { convexApi } from "../lib/convex/api";
 import { isConvexFeatureEnabled } from "../lib/convex/config";
 import type { SchedulingPreferencesFormValues } from "../lib/convex/contracts";
-import { apiUrl } from "../lib/runtimeConfig";
 
 type SchedulingPreferences = {
   planning_mode?: string | null;
@@ -85,7 +84,8 @@ const PREFERENCE_CONFIGS: PreferenceConfig[] = [
 
 export default function SettingsPage() {
   usePageTitle("Settings");
-  const { signOut, jwt } = useAuth();
+  const { signOut } = useAuth();
+  const convexEnabled = isConvexFeatureEnabled();
   const [preferences, setPreferences] = useState<SchedulingPreferences>({});
   const [loadState, setLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [savingField, setSavingField] = useState<string | null>(null);
@@ -94,97 +94,63 @@ export default function SettingsPage() {
 
   const convexSchedulingPrefs = useQuery(
     convexApi.profile.getCurrentSchedulingPreferences,
-    isConvexFeatureEnabled() ? {} : "skip",
+    convexEnabled ? {} : "skip",
   );
   const updateSchedulingPrefs = useMutation(convexApi.profile.updateCurrentSchedulingPreferences);
 
-  // Sync Convex query results into local state when data arrives
+  // Convex is now the source of truth for scheduling preferences.
   useEffect(() => {
-    if (convexSchedulingPrefs != null) {
-      setPreferences(convexSchedulingPrefs);
-      setLoadState("ready");
-    }
-  }, [convexSchedulingPrefs]);
-
-  const fetchPreferences = useCallback(async () => {
-    if (!jwt) return;
-    // If Convex already provided data, skip the Flask fetch
-    if (convexSchedulingPrefs != null) {
-      setLoadState("ready");
+    if (!convexEnabled) {
+      setLoadState("error");
       return;
     }
-    setLoadState("loading");
-    try {
-      const res = await fetch(apiUrl("/api/auth/scheduling-preferences"), {
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-          Accept: "application/json",
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setPreferences(data);
-        setLoadState("ready");
-      } else {
-        setLoadState("error");
-      }
-    } catch {
-      setLoadState("error");
+
+    if (convexSchedulingPrefs === undefined) {
+      setLoadState("loading");
+      return;
     }
-  }, [jwt, convexSchedulingPrefs]);
+
+    setPreferences(convexSchedulingPrefs ?? {});
+    setLoadState("ready");
+  }, [convexEnabled, convexSchedulingPrefs]);
+
+  const fetchPreferences = useCallback(async () => {
+    if (!convexEnabled) {
+      setLoadState("error");
+      return;
+    }
+
+    if (convexSchedulingPrefs === undefined) {
+      setLoadState("loading");
+      return;
+    }
+
+    setPreferences(convexSchedulingPrefs ?? {});
+    setLoadState("ready");
+  }, [convexEnabled, convexSchedulingPrefs]);
 
   useEffect(() => {
-    fetchPreferences();
+    void fetchPreferences();
   }, [fetchPreferences]);
 
   const updatePreference = async (field: keyof SchedulingPreferences, value: string) => {
-    if (!jwt || savingField) return;
+    if (savingField || !convexEnabled) return;
 
     setSavingField(field);
     setSuccessField(null);
     setSaveErrorField(null);
 
-    let saved = false;
-
-    // Try Convex first
-    if (isConvexFeatureEnabled()) {
-      try {
-        await updateSchedulingPrefs({ patch: { [field]: value } as SchedulingPreferencesFormValues });
-        saved = true;
-      } catch {
-        // Fall through to Flask
-      }
-    }
-
-    // Fall back to Flask if Convex failed or is disabled
-    if (!saved) {
-      try {
-        const res = await fetch(apiUrl("/api/auth/scheduling-preferences"), {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${jwt}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ [field]: value }),
-        });
-        if (res.ok) {
-          saved = true;
-        }
-      } catch {
-        // Silent fail - user can try again
-      }
-    }
-
-    if (saved) {
+    try {
+      await updateSchedulingPrefs({ patch: { [field]: value } as SchedulingPreferencesFormValues });
       setPreferences((prev) => ({ ...prev, [field]: value }));
       setSuccessField(field);
       setTimeout(() => setSuccessField(null), 2000);
-    } else {
+    } catch {
       setSaveErrorField(field);
       setTimeout(() => setSaveErrorField(null), 3000);
+    } finally {
+      setSavingField(null);
     }
-
-    setSavingField(null);
   };
 
   return (

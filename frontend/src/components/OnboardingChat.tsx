@@ -143,23 +143,7 @@ export default function OnboardingChat() {
     setIsComplete(true);
 
     try {
-      // Try Convex mutation first
-      try {
-        await completeOnboarding({ answers: finalAnswers as SchedulingPreferencesFormValues });
-      } catch {
-        // Convex unavailable or auth issue — fall back to Flask
-        await fetch(apiUrl("/api/auth/preferences"), {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${jwt}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            onboardingComplete: true,
-            onboardingAnswers: finalAnswers,
-          }),
-        });
-      }
+      await completeOnboarding({ answers: finalAnswers as SchedulingPreferencesFormValues });
       mergePreferences({ onboardingComplete: true });
     } catch (err) {
       console.error("Finish failed", err);

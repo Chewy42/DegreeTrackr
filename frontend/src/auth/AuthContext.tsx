@@ -389,73 +389,14 @@ export function AuthProvider({ children }: Props) {
   const refreshPreferences = useCallback(async () => {
     if (!jwt) return
 
-    // If Convex already has preferences, skip the Flask fetch
-    if (convexUserPrefs != null) return
-
-    const attemptFetch = async (): Promise<Response> => {
-      return await fetch(apiUrl('/api/auth/preferences'), {
-        headers: {
-          'Authorization': `Bearer ${jwt}`,
-          'Accept': 'application/json'
-        }
-      })
+    // Convex is now the source of truth for preference refreshes.
+    if (convexUserPrefs != null) {
+      persistPreferences(convexUserPrefs as UserPreferences)
+      return
     }
 
-    try {
-      let res: Response
-      try {
-        res = await attemptFetch()
-      } catch (err) {
-        if (isNetworkError(err)) {
-          console.error('Network error while refreshing preferences, using cached:', err)
-          return
-        }
-        throw err
-      }
-
-      if (res.ok) {
-        const prefs = await res.json() as UserPreferences
-        persistPreferences(prefs)
-        return
-      }
-
-      if (res.status === 401 || res.status === 403) {
-        console.warn(`Auth error (${res.status}) refreshing preferences`)
-        if (isSignedIn) {
-          try {
-            await finalizeAuthenticatedSession()
-            return
-          } catch (exchangeErr) {
-            console.error('Failed to refresh Clerk-backed session:', exchangeErr)
-          }
-        }
-        signOut()
-        return
-      }
-
-      if (res.status >= 500 && res.status < 600) {
-        console.warn(`Server error (${res.status}) refreshing preferences, retrying in 2s...`)
-        await delay(2000)
-        
-        try {
-          const retryRes = await attemptFetch()
-          if (retryRes.ok) {
-            const prefs = await retryRes.json() as UserPreferences
-            persistPreferences(prefs)
-            return
-          }
-          console.error(`Retry also failed with status ${retryRes.status}, using cached preferences`)
-        } catch (retryErr) {
-          console.error('Retry failed with error, using cached preferences:', retryErr)
-        }
-        return
-      }
-
-      console.error(`Unexpected error (${res.status}) refreshing preferences, using cached`)
-    } catch (err) {
-      console.error('Failed to refresh preferences, using cached:', err)
-    }
-  }, [convexUserPrefs, finalizeAuthenticatedSession, isSignedIn, jwt, persistPreferences, signOut])
+    persistPreferences(safeParseJson<UserPreferences>(safeGetLocalStorage(LOCAL_PREF_KEY), preferences))
+  }, [convexUserPrefs, jwt, persistPreferences, preferences])
 
   useEffect(() => {
     if (jwt && sessionState === 'authenticated') {

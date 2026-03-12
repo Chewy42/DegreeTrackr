@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { FiUploadCloud, FiFileText, FiEye, FiArrowRight, FiExternalLink, FiLoader } from "react-icons/fi";
 import { useAuth } from "../auth/AuthContext";
+import { convexApi, getConvexClient } from "../lib/convex";
 import { apiUrl } from "../lib/runtimeConfig";
 
 type UploadState = "idle" | "uploading" | "uploaded";
@@ -88,12 +89,33 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
         return;
       }
 
-      const body = await response.json().catch(() => ({} as { error?: string }));
+      const body = await response.json().catch(() => ({} as { error?: string; parsed?: Record<string, unknown>; filename?: string }));
       if (!response.ok) {
         setError(body.error || "Unable to upload file.");
         setUploadState("idle");
         return;
       }
+
+      // Persist the parsed result into Convex so all downstream consumers
+      // (viewer, progress page, schedule builder) have immediate access
+      // without needing the legacy bridge for reads.
+      try {
+        const client = getConvexClient();
+        if (client) {
+          await client.mutation(convexApi.evaluations.replaceCurrentProgramEvaluationFromUpload, {
+            payload: {
+              original_filename: body.filename ?? file.name,
+              parsed_data: body.parsed,
+              mime_type: file.type || "application/pdf",
+              file_size_bytes: file.size,
+            },
+          });
+        }
+      } catch (convexErr) {
+        // Non-fatal: upload succeeded, Convex sync is best-effort
+        console.error("Failed to sync upload result to Convex:", convexErr);
+      }
+
       mergePreferences({ hasProgramEvaluation: true, onboardingComplete: false });
       setUploadState("uploaded");
       if (onSuccess) {

@@ -4,6 +4,7 @@ import { useQuery } from 'convex/react'
 import { buildClerkRedirectUrls, extractClerkErrorMessage } from './clerkAuth'
 import { convexApi } from '../lib/convex/api'
 import { isConvexFeatureEnabled } from '../lib/convex/config'
+import { apiUrl } from '../lib/runtimeConfig'
 
 export type AuthMode = 'sign_in' | 'sign_up'
 
@@ -101,7 +102,7 @@ function safeParseJson<T>(json: string | null, fallback: T): T {
 }
 
 async function exchangeClerkSession(clerkToken: string): Promise<SessionExchangeResponse> {
-  const response = await fetch('/api/auth/clerk/session', {
+  const response = await fetch(apiUrl('/api/auth/clerk/session'), {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${clerkToken}`,
@@ -130,7 +131,7 @@ async function checkBackendHealth(): Promise<boolean> {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 5000)
     
-    const res = await fetch('/api/health', {
+    const res = await fetch(apiUrl('/api/health'), {
       method: 'GET',
       signal: controller.signal
     })
@@ -308,7 +309,7 @@ export function AuthProvider({ children }: Props) {
     if (convexUserPrefs != null) return
 
     const attemptFetch = async (): Promise<Response> => {
-      return await fetch('/api/auth/preferences', {
+      return await fetch(apiUrl('/api/auth/preferences'), {
         headers: {
           'Authorization': `Bearer ${jwt}`,
           'Accept': 'application/json'

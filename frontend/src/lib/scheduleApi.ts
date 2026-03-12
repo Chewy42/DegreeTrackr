@@ -18,8 +18,9 @@ import type {
 import { getConvexClient } from './convex/client';
 import { convexApi } from './convex/api';
 import type { ScheduleSnapshotResult } from './convex/api';
+import { apiUrl } from './runtimeConfig';
 
-const API_BASE = '/api';
+const API_BASE = apiUrl('/api');
 
 /**
  * Search and filter available classes.

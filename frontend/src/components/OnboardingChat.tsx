@@ -10,6 +10,7 @@ import { useMutation } from "convex/react";
 import { useAuth } from "../auth/AuthContext";
 import { convexApi } from "../lib/convex/api";
 import type { SchedulingPreferencesFormValues } from "../lib/convex/contracts";
+import { apiUrl } from "../lib/runtimeConfig";
 
 // Static onboarding questions with button options
 type OnboardingQuestion = {
@@ -117,7 +118,7 @@ export default function OnboardingChat() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/program-evaluations", {
+      const res = await fetch(apiUrl("/api/program-evaluations"), {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${jwt}`,
@@ -147,7 +148,7 @@ export default function OnboardingChat() {
         await completeOnboarding({ answers: finalAnswers as SchedulingPreferencesFormValues });
       } catch {
         // Convex unavailable or auth issue — fall back to Flask
-        await fetch("/api/auth/preferences", {
+        await fetch(apiUrl("/api/auth/preferences"), {
           method: "POST",
           headers: {
             Authorization: `Bearer ${jwt}`,

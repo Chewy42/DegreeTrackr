@@ -1,7 +1,7 @@
-import config from '../../config/app.json'
+import { apiUrl } from './runtimeConfig'
 
 export async function getHealth(): Promise<{ status: string }> {
-	  const res = await fetch(`${config.apiBaseUrl}/health`, {
+	  const res = await fetch(apiUrl('/api/health'), {
 	    headers: { 'Accept': 'application/json' },
 	  })
 	  if (!res.ok) {
@@ -23,7 +23,7 @@ export type ChatMessage = {
 	};
 
 export async function listChatSessions(jwt: string): Promise<ChatSession[]> {
-	  const res = await fetch('/api/chat/sessions', {
+	  const res = await fetch(apiUrl('/api/chat/sessions'), {
 	    headers: {
 	      'Authorization': `Bearer ${jwt}`,
 	      'Accept': 'application/json'
@@ -34,7 +34,7 @@ export async function listChatSessions(jwt: string): Promise<ChatSession[]> {
 	}
 
 export async function deleteChatSession(jwt: string, sessionId: string): Promise<void> {
-	  const res = await fetch(`/api/chat/sessions/${sessionId}`, {
+	  const res = await fetch(apiUrl(`/api/chat/sessions/${sessionId}`), {
 	    method: 'DELETE',
 	    headers: {
 	      'Authorization': `Bearer ${jwt}`,
@@ -53,7 +53,7 @@ export async function clearExploreChatSessions(
 	    params.set('keep_session_id', keepSessionId);
 	  }
 	  const query = params.toString();
-	  const res = await fetch(`/api/chat/sessions?${query}`, {
+	  const res = await fetch(`${apiUrl('/api/chat/sessions')}?${query}`, {
 	    method: 'DELETE',
 	    headers: {
 	      'Authorization': `Bearer ${jwt}`,
@@ -64,7 +64,7 @@ export async function clearExploreChatSessions(
 	}
 
 export async function getChatHistory(jwt: string, sessionId: string): Promise<ChatMessage[]> {
-	  const res = await fetch(`/api/chat/history/${sessionId}`, {
+	  const res = await fetch(apiUrl(`/api/chat/history/${sessionId}`), {
 	    headers: {
 	      'Authorization': `Bearer ${jwt}`,
 	      'Accept': 'application/json'
@@ -74,4 +74,3 @@ export async function getChatHistory(jwt: string, sessionId: string): Promise<Ch
 	  const data = await res.json();
 	  return data.messages || [];
 	}
-

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FiEye, FiRefreshCw, FiFileText, FiX, FiUploadCloud } from "react-icons/fi";
 import { useAuth } from "../auth/AuthContext";
+import { apiUrl } from "../lib/runtimeConfig";
 import ProgramEvaluationUpload from "./ProgramEvaluationUpload";
 
 type ParsedPayload = {
@@ -38,7 +39,7 @@ export default function ProgramEvaluationViewer() {
   const hasFile = loadState === "ready" && parsed;
   const directPdfUrl = useMemo(() => {
     if (!jwt) return null;
-    return `/api/program-evaluations?token=${encodeURIComponent(jwt)}`;
+    return `${apiUrl("/api/program-evaluations")}?token=${encodeURIComponent(jwt)}`;
   }, [jwt]);
 
   const revokePreview = useCallback(() => {
@@ -53,7 +54,7 @@ export default function ProgramEvaluationViewer() {
     setLoadState("loading");
     setError(null);
     try {
-      const res = await fetch("/api/program-evaluations/parsed", {
+      const res = await fetch(apiUrl("/api/program-evaluations/parsed"), {
         headers: {
           Authorization: `Bearer ${jwt}`,
           Accept: "application/json",

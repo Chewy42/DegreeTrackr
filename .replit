@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "python-3.11"]
+modules = ["nodejs-20", "web"]
 [agent]
 expertMode = true
 
@@ -28,26 +28,18 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
-waitForPort = 5000
+waitForPort = 3333
 
 [workflows.workflow.metadata]
 outputType = "webview"
 
 [[ports]]
-localPort = 5000
-externalPort = 5000
-
-[[ports]]
-localPort = 5001
-externalPort = 3000
-
-[[ports]]
-localPort = 5173
+localPort = 3333
 externalPort = 80
 
 
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["sh", "-c", "npm run preview"]
+run = ["sh", "-c", "cd frontend && npm run preview"]
 build = ["sh", "-c", "npm run build"]

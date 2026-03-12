@@ -1,7 +1,7 @@
 # DegreeTrackr - Education Tracking Platform
 
 ## Overview
-DegreeTrackr is a full-stack web application for Chapman University students to track their education and courses. The application features a React frontend with Material-UI and a Flask Python backend with JWT authentication.
+DegreeTrackr is a React + TypeScript frontend for Chapman University students to track education and courses, backed by Convex + Clerk with Cloudflare Pages as the intended deployment target.
 
 ## Project Architecture
 
@@ -9,84 +9,53 @@ DegreeTrackr is a full-stack web application for Chapman University students to 
 - **Framework**: React 18 with TypeScript
 - **Build Tool**: Vite 5
 - **Styling**: Material-UI (MUI) + Tailwind CSS
-- **Port**: 5173 (mapped to port 80 in Replit deployments)
-- **Features**: 
-  - User authentication (sign-in/sign-up)
-  - Chapman.edu email validation
-  - JWT token management
-  - User preferences storage
-
-### Backend
-- **Framework**: Flask (Python 3.11)
-- **Port**: 5000 (internal, proxied by Vite)
+- **Port**: 3333 (mapped to port 80 in Replit deployments)
 - **Features**:
-  - RESTful API endpoints
-  - JWT authentication
-  - CORS enabled
-  - Chapman.edu email domain restriction
+  - User authentication (Clerk)
+  - User preferences storage
+  - Progress and scheduling tools
 
-### API Endpoints
-- `GET /health` - Health check endpoint
-- `POST /auth/sign-in` - User sign-in
-- `POST /auth/sign-up` - User registration
-- `GET /auth/preferences` - Get user preferences (requires JWT)
+### Services
+- **Application data**: Convex
+- **Authentication**: Clerk
+- **Email**: Resend
+- **Billing**: Polar
+- **Deployment**: Cloudflare Pages
 
 ## Development Setup
 
 ### Running the Application
-Use Replit's Run button workflows (or run the commands manually):
+Use Replit's Run button workflow (or run the command manually):
 
-- **Dev** → `npm run dev` (default). Runs Flask on port 5000 and Vite on 5173.
-- **DevDocker** → `npm run dev:docker`. Spins up Docker Compose, mapping host port 5173 to container port 80 so the frontend mimics the production ingress while the backend still listens on 5000.
-
-Both options proxy `/api/*` to the backend.
+- **Dev** -> `npm run dev` (default). Runs the frontend shell on `3333`.
 
 ### Project Structure
 ```
 .
-├── backend/
-│   ├── app/
-│   │   ├── __init__.py
-│   │   └── main.py          # Flask application
-│   └── requirements.txt      # Python dependencies
 ├── frontend/
 │   ├── src/
 │   │   ├── auth/            # Authentication context
 │   │   ├── components/      # React components
-│   │   └── lib/             # API utilities
+│   │   └── lib/             # Runtime and legacy bridge utilities
 │   ├── config/
 │   │   └── app.json         # Frontend config
 │   ├── package.json
 │   └── vite.config.ts       # Vite configuration
-└── package.json             # Root package with concurrently
-
+├── convex/                  # Serverless backend modules and schema
+├── docs/                    # Architecture and migration notes
+└── package.json             # Root package scripts
 ```
 
 ## Configuration
 
 ### Frontend Configuration
-- API base URL: `/api` (proxied to backend)
+- Convex URL: `VITE_CONVEX_URL`
+- Clerk publishable key: `VITE_CLERK_PUBLISHABLE_KEY`
+- Legacy bridge URL: `VITE_API_BASE_URL` for Clerk session exchange and the remaining deferred `/api/*` seams
 - Host: `0.0.0.0` (accessible via Replit preview)
-- Port: `CLIENT_PORT` env (defaults to `5173`, overridden to `80` inside Docker while still exposed on host `5173`)
-- Proxy target: `VITE_PROXY_TARGET` / `SERVER_URL` (defaults to `http://127.0.0.1:5000`, set to `http://backend:5000` in Docker)
-
-### Backend Configuration
-- Host: `0.0.0.0` (bound for both local development and Replit)
-- Port: `5000`
-- JWT Secret: Configured via `JWT_SECRET_KEY` environment variable (defaults to dev key)
+- Port: `CLIENT_PORT` env (defaults to `3333`, exposed as port `80` in Replit)
 
 ## Dependencies
-
-### Backend (Python)
-- flask - Web framework
-- flask-cors - CORS support
-- pyjwt - JWT token handling
-- waitress - Production WSGI server
-- python-dotenv - Environment variables
-- requests - HTTP client
-- sqlalchemy - Database ORM
-- alembic - Database migrations
-- psycopg - PostgreSQL adapter
 
 ### Frontend (Node.js)
 - react - UI framework
@@ -97,29 +66,16 @@ Both options proxy `/api/*` to the backend.
 - vite - Build tool
 - typescript - Type safety
 
-### Root
-- concurrently - Run multiple commands concurrently
-
 ## Deployment
-The application is configured for autoscale deployment on Replit, running both frontend and backend as a single service.
+The frontend is deployment-first and builds with `npm run build`, intended for Cloudflare Pages.
 
 ## Recent Changes
-- 2025-12-04: Major robustness improvements to prevent crashes
-  - Added global error handlers to Flask backend for all HTTP errors (400, 404, 405, 500, 502, 503)
-  - Added JSON validation middleware to catch malformed requests
-  - Improved Supabase client with retry logic (3 retries with exponential backoff)
-  - Added React Error Boundary to prevent UI crashes from breaking the entire app
-  - Improved AuthContext with health checks, token validation, and error recovery
-  - Added backend_unavailable state for graceful degradation when server is down
-  - Created robust API client wrapper with retry logic and timeout handling
-  
-- 2025-11-12: Initial setup for Replit environment
-  - Created Flask backend with auth endpoints
-  - Configured Vite to run on port 5173 with backend proxy
-  - Integrated frontend with real backend API calls
-  - Set up unified development workflow
+- 2026-03-11: Serverless architecture cleanup
+  - Removed the in-repo Flask backend and Supabase-era setup artifacts from active repo metadata
+  - Updated Replit workflow docs to reflect the frontend shell workflow on port 3333
+  - Marked remaining `/api/*` client integrations as deferred legacy seams instead of active runtime defaults
+  - Added an explicit setup-required state when the legacy bridge URL has not been configured
 
 ## User Preferences
 - Requires Chapman.edu email for authentication
-- Currently using stub authentication (to be connected to actual database/Supabase)
-- JWT tokens stored in localStorage
+- Clerk is the authentication provider of record

@@ -8,6 +8,7 @@ import ProgramEvaluationViewer from "./ProgramEvaluationViewer";
 import { convexApi } from "../lib/convex/api";
 import { isConvexFeatureEnabled } from "../lib/convex/config";
 import type { SchedulingPreferencesFormValues } from "../lib/convex/contracts";
+import { apiUrl } from "../lib/runtimeConfig";
 
 type SchedulingPreferences = {
   planning_mode?: string | null;
@@ -114,7 +115,7 @@ export default function SettingsPage() {
     }
     setLoadState("loading");
     try {
-      const res = await fetch("/api/auth/scheduling-preferences", {
+      const res = await fetch(apiUrl("/api/auth/scheduling-preferences"), {
         headers: {
           Authorization: `Bearer ${jwt}`,
           Accept: "application/json",
@@ -158,7 +159,7 @@ export default function SettingsPage() {
     // Fall back to Flask if Convex failed or is disabled
     if (!saved) {
       try {
-        const res = await fetch("/api/auth/scheduling-preferences", {
+        const res = await fetch(apiUrl("/api/auth/scheduling-preferences"), {
           method: "PATCH",
           headers: {
             Authorization: `Bearer ${jwt}`,

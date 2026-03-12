@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { FiUploadCloud, FiFileText, FiEye, FiArrowRight, FiExternalLink, FiLoader } from "react-icons/fi";
 import { useAuth } from "../auth/AuthContext";
+import { apiUrl } from "../lib/runtimeConfig";
 
 type UploadState = "idle" | "uploading" | "uploaded";
 
@@ -74,7 +75,7 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const response = await fetch("/api/program-evaluations", {
+      const response = await fetch(apiUrl("/api/program-evaluations"), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${jwt}`,
@@ -110,7 +111,7 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
       return;
     }
     try {
-      const response = await fetch("/api/program-evaluations", {
+      const response = await fetch(apiUrl("/api/program-evaluations"), {
         headers: {
           Authorization: `Bearer ${jwt}`,
         },
@@ -300,5 +301,4 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 		</div>
 	);
 }
-
 

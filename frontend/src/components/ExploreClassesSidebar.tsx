@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FiAlertCircle, FiBookOpen, FiLoader, FiSearch, FiUser } from "react-icons/fi";
 import { useAuth } from "../auth/AuthContext";
+import { apiUrl } from "../lib/runtimeConfig";
 
 type UpcomingClass = {
   id: string;
@@ -22,7 +23,7 @@ export default function ExploreClassesSidebar() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/classes/upcoming", {
+      const res = await fetch(apiUrl("/api/classes/upcoming"), {
         headers: {
           Authorization: `Bearer ${jwt}`,
           Accept: "application/json",

@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RUNNER_SCRIPT="$REPO_ROOT/scripts/run_desktop_launcher.sh"
-APP_NAME="EduTrackr Dev Launcher.app"
+APP_NAME="DegreeTrackr Dev Launcher.app"
 APP_PATH="$HOME/Desktop/$APP_NAME"
 
 if [[ ! -f "$RUNNER_SCRIPT" ]]; then

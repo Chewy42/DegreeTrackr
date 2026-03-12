@@ -51,6 +51,7 @@ Some frontend utilities still point at optional `/api/*` integrations. These are
 - Build with `npm run build`.
 - Deploy the frontend to Cloudflare Pages.
 - Configure provider secrets outside the repo for Clerk, Convex, Resend, Polar, and Cloudflare.
+- Follow `docs/CLOUD_ENV_SETUP.md` for the current Pages env matrix and SPA fallback requirements.
 
 ## Remaining follow-up work outside this wave
 

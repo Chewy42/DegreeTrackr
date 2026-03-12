@@ -27,7 +27,7 @@ DegreeTrackr is a React + TypeScript frontend for Chapman University students to
 ### Running the Application
 Use Replit's Run button workflow (or run the command manually):
 
-- **Dev** -> `npm run dev` (default). Runs Vite on `3333`.
+- **Dev** -> `npm run dev` (default). Runs the frontend shell on `3333`.
 
 ### Project Structure
 ```
@@ -51,7 +51,7 @@ Use Replit's Run button workflow (or run the command manually):
 ### Frontend Configuration
 - Convex URL: `VITE_CONVEX_URL`
 - Clerk publishable key: `VITE_CLERK_PUBLISHABLE_KEY`
-- Optional legacy bridge URL: `VITE_API_BASE_URL` for deferred `/api/*` seams only
+- Legacy bridge URL: `VITE_API_BASE_URL` for Clerk session exchange and the remaining deferred `/api/*` seams
 - Host: `0.0.0.0` (accessible via Replit preview)
 - Port: `CLIENT_PORT` env (defaults to `3333`, exposed as port `80` in Replit)
 
@@ -72,8 +72,9 @@ The frontend is deployment-first and builds with `npm run build`, intended for C
 ## Recent Changes
 - 2026-03-11: Serverless architecture cleanup
   - Removed the in-repo Flask backend and Supabase-era setup artifacts from active repo metadata
-  - Updated Replit workflow docs to reflect the frontend-only local development flow on port 3333
+  - Updated Replit workflow docs to reflect the frontend shell workflow on port 3333
   - Marked remaining `/api/*` client integrations as deferred legacy seams instead of active runtime defaults
+  - Added an explicit setup-required state when the legacy bridge URL has not been configured
 
 ## User Preferences
 - Requires Chapman.edu email for authentication

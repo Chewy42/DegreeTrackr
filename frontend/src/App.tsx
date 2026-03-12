@@ -93,6 +93,37 @@ export default function App() {
     );
   }
 
+  if (sessionState === "legacy_bridge_required") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface-muted text-text-primary px-4">
+        <div className="max-w-xl w-full rounded-3xl border border-amber-200 bg-white p-8 shadow-sm space-y-5">
+          <div className="space-y-2 text-center">
+            <h2 className="text-2xl font-semibold">Legacy bridge setup required</h2>
+            <p className="text-sm text-text-secondary">
+              This frontend can boot on its own, but Clerk session exchange and the
+              remaining legacy <code>/api/*</code> flows still need an explicit
+              <code> VITE_API_BASE_URL </code>
+              or injected runtime <code>apiBaseUrl</code>.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-text-secondary">
+            Configure the bridge URL, then reload to continue with sign-in, program evaluation,
+            schedule generation, and explore flows.
+          </div>
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={signOut}
+              className="px-6 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-white rounded-lg font-medium transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (sessionState === "pending_confirmation") {
     return (
       <EmailConfirmationNotice

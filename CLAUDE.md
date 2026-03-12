@@ -40,6 +40,7 @@ npm run test
 - Treat this repo as frontend-first and serverless by default.
 - `VITE_CONVEX_URL` must be set for Convex-backed flows.
 - Clerk is the active auth provider in the frontend.
+- `VITE_API_BASE_URL` is still required for Clerk session exchange and the remaining legacy `/api/*` seams.
 - Cloudflare Pages is the intended deployment target for the frontend app.
 - Resend and Polar are the intended external provider seams when those flows are wired up.
 - Keep strict types, favor smaller files when modules grow too large, and back new logic with tests.

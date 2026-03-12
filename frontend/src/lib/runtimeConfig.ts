@@ -90,6 +90,10 @@ function getWindowRuntimeConfig(): RuntimeConfigSource | undefined {
   return undefined
 }
 
+function getConfiguredApiBaseUrl(windowConfig: RuntimeConfigSource | undefined): string | undefined {
+  return normalizeUrl(windowConfig?.apiBaseUrl) ?? normalizeUrl(import.meta.env.VITE_API_BASE_URL)
+}
+
 function normalizeEndpointPath(path: string): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
 
@@ -108,10 +112,7 @@ export function getRuntimeConfig(): RuntimeConfig {
   const windowConfig = getWindowRuntimeConfig()
 
   return {
-    apiBaseUrl:
-      normalizeUrl(windowConfig?.apiBaseUrl) ??
-      normalizeUrl(import.meta.env.VITE_API_BASE_URL) ??
-      DEFAULT_API_BASE_URL,
+    apiBaseUrl: getConfiguredApiBaseUrl(windowConfig) ?? DEFAULT_API_BASE_URL,
     routerBasename: normalizeBasePath(
       windowConfig?.routerBasename ?? import.meta.env.VITE_ROUTER_BASENAME,
       DEFAULT_ROUTER_BASENAME
@@ -133,6 +134,10 @@ export function getRuntimeConfig(): RuntimeConfig {
 
 export function getApiBaseUrl(): string {
   return getRuntimeConfig().apiBaseUrl
+}
+
+export function hasConfiguredLegacyApiBaseUrl(): boolean {
+  return Boolean(getConfiguredApiBaseUrl(getWindowRuntimeConfig()))
 }
 
 export function apiUrl(path: string): string {

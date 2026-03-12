@@ -68,6 +68,19 @@ describe('App auth entry point', () => {
     expect(html).toContain('create your Clerk-backed account and continue')
   })
 
+  it('renders a setup notice when the legacy bridge is still required', () => {
+    mockUseAuth.mockReturnValue({
+      ...baseContext,
+      sessionState: 'legacy_bridge_required',
+    })
+
+    const html = renderApp()
+
+    expect(html).toContain('Legacy bridge setup required')
+    expect(html).toContain('VITE_API_BASE_URL')
+    expect(html).toContain('program evaluation')
+  })
+
   it('renders the Clerk callback route', () => {
     mockUseAuth.mockReturnValue(baseContext)
 

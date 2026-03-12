@@ -4,7 +4,7 @@ import { useQuery } from 'convex/react'
 import { buildClerkRedirectUrls, extractClerkErrorMessage } from './clerkAuth'
 import { convexApi } from '../lib/convex/api'
 import { isConvexFeatureEnabled } from '../lib/convex/config'
-import { apiUrl } from '../lib/runtimeConfig'
+import { apiUrl, hasConfiguredLegacyApiBaseUrl } from '../lib/runtimeConfig'
 
 export type AuthMode = 'sign_in' | 'sign_up'
 
@@ -14,7 +14,13 @@ export type AuthState = {
   confirmPassword: string
 }
 
-export type SessionState = 'checking' | 'unauthenticated' | 'authenticated' | 'pending_confirmation' | 'backend_unavailable'
+export type SessionState =
+  | 'checking'
+  | 'unauthenticated'
+  | 'authenticated'
+  | 'pending_confirmation'
+  | 'backend_unavailable'
+  | 'legacy_bridge_required'
 
 export type UserPreferences = {
   theme?: 'light' | 'dark'
@@ -235,6 +241,24 @@ export function AuthProvider({ children }: Props) {
   }, [clearLocalSession, clerk])
 
   const syncSessionState = useCallback(async () => {
+    const needsLegacyBridgeSetup =
+      isConvexFeatureEnabled() && !hasConfiguredLegacyApiBaseUrl()
+
+    if (needsLegacyBridgeSetup) {
+      if (!isSignedIn) {
+        clearLocalSession()
+        setError(null)
+        setSessionState('unauthenticated')
+        return
+      }
+
+      persistJwt(null)
+      setPendingEmail(null)
+      setError(null)
+      setSessionState('legacy_bridge_required')
+      return
+    }
+
     const isHealthy = await checkBackendHealth()
     if (!isHealthy) {
       setSessionState('backend_unavailable')
@@ -255,7 +279,7 @@ export function AuthProvider({ children }: Props) {
       setError(extractClerkErrorMessage(err, 'Unable to finish your Clerk sign-in.'))
       setSessionState('unauthenticated')
     }
-  }, [clearLocalSession, finalizeAuthenticatedSession, isSignedIn])
+  }, [clearLocalSession, finalizeAuthenticatedSession, isSignedIn, persistJwt])
 
   const retryBackendConnection = useCallback(async () => {
     if (!clerkLoaded) {

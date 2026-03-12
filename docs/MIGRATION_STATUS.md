@@ -42,9 +42,10 @@ Some frontend utilities still point at optional `/api/*` integrations. These are
 
 ## Local development expectations
 
-- Run `npm run dev` from the repo root for the supported local workflow.
+- Run `npm run dev` from the repo root to start the frontend shell.
 - Set `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_CONVEX_URL` for the frontend.
-- Use `VITE_API_BASE_URL` only when intentionally testing a deferred external legacy bridge.
+- Set `VITE_API_BASE_URL` (or inject a runtime `apiBaseUrl`) before testing Clerk session exchange or any deferred `/api/*` bridge flow.
+- Without that bridge, the app now stops at an explicit setup-required state after Clerk sign-in instead of surfacing a misleading temporary outage screen.
 
 ## Deployment expectations
 

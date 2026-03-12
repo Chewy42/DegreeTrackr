@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { apiUrl, getApiBaseUrl } from './runtimeConfig'
+import { apiUrl, getApiBaseUrl, hasConfiguredLegacyApiBaseUrl } from './runtimeConfig'
 
 const originalWindow = globalThis.window
 
@@ -23,6 +23,7 @@ afterEach(() => {
 describe('runtimeConfig', () => {
   it('defaults apiUrl to the local legacy /api path', () => {
     expect(getApiBaseUrl()).toBe('/api')
+    expect(hasConfiguredLegacyApiBaseUrl()).toBe(false)
     expect(apiUrl('/api/health')).toBe('/api/health')
   })
 
@@ -34,6 +35,7 @@ describe('runtimeConfig', () => {
     } as Window)
 
     expect(getApiBaseUrl()).toBe('https://legacy.example.com/api')
+    expect(hasConfiguredLegacyApiBaseUrl()).toBe(true)
     expect(apiUrl('/api/auth/clerk/session')).toBe(
       'https://legacy.example.com/api/auth/clerk/session'
     )

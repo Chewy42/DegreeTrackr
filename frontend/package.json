@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5173",
     "typecheck": "tsc --noEmit",
-    "test": "vitest"
+    "test": "NODE_ENV=test vitest"
   },
   "dependencies": {
     "@clerk/react": "^6.0.1",

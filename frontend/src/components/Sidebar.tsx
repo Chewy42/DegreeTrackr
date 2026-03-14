@@ -69,7 +69,10 @@ export default function Sidebar() {
       </div>
       <nav className="flex flex-1 flex-col gap-1 py-4">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.to;
+          const isActive =
+            item.to === "/"
+              ? location.pathname === "/" || location.pathname === "/progress-page"
+              : location.pathname === item.to;
 
           return (
             <Link

@@ -5,6 +5,7 @@ interface DegreeProgressCardProps {
   totalCredits: number;
   earnedCredits: number;
   inProgressCredits: number;
+  hasEvaluation?: boolean;
 }
 
 export default function DegreeProgressCard({
@@ -12,7 +13,27 @@ export default function DegreeProgressCard({
   totalCredits,
   earnedCredits,
   inProgressCredits,
+  hasEvaluation = true,
 }: DegreeProgressCardProps) {
+  if (!hasEvaluation) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <div className="flex flex-col items-center justify-center gap-3 py-6 text-center">
+          <div className="h-14 w-14 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-700">No progress data yet</p>
+            <p className="text-xs text-slate-500 mt-1">Upload your transcript to see progress</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Calculate stroke properties for circular progress
   const size = 120;
   const strokeWidth = 10;

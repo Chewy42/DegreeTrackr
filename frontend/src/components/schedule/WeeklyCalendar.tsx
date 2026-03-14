@@ -1,11 +1,13 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { FiX } from 'react-icons/fi';
+import { FiX, FiAlertTriangle } from 'react-icons/fi';
 import { ScheduledClass, SHORT_DAY_NAMES, minutesToTime, hasMeetingTimes } from './types';
 import ClassDetailsModal from './ClassDetailsModal';
 
 interface WeeklyCalendarProps {
   classes: ScheduledClass[];
   onRemoveClass: (classId: string) => void;
+  /** classId → conflict message; blocks with a conflict get a red highlight */
+  conflicts?: Record<string, string>;
 }
 
 const START_HOUR = 7; // 7 AM
@@ -14,7 +16,7 @@ const DEFAULT_HOUR_HEIGHT = 120; // px per hour fallback
 
 const GRID_ROWS = END_HOUR - START_HOUR + 1; // number of hour slots to render
 
-export default function WeeklyCalendar({ classes, onRemoveClass }: WeeklyCalendarProps) {
+export default function WeeklyCalendar({ classes, onRemoveClass, conflicts = {} }: WeeklyCalendarProps) {
 	  const [selectedClass, setSelectedClass] = useState<ScheduledClass | null>(null);
 	  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 	  const [hourHeight, setHourHeight] = useState<number>(DEFAULT_HOUR_HEIGHT);
@@ -133,11 +135,12 @@ export default function WeeklyCalendar({ classes, onRemoveClass }: WeeklyCalenda
                     {/* Class Blocks */}
                     {scheduledClasses.map(cls => {
                         const daySlots = cls.occurrenceData?.daysOccurring?.[day] ?? [];
+                        const conflictMsg = conflicts[cls.id];
                         return daySlots.map((slot, idx) => {
                         const startMinutes = slot.startTime;
                         const endMinutes = slot.endTime;
 	                        const duration = endMinutes - startMinutes;
-                        
+
 	                        // Calculate position
 	                        const top = (startMinutes - (START_HOUR * 60)) * pixelsPerMinute;
 	                        const height = duration * pixelsPerMinute;
@@ -146,14 +149,22 @@ export default function WeeklyCalendar({ classes, onRemoveClass }: WeeklyCalenda
                             <div
                             key={`${cls.id}-${day}-${idx}`}
                             onClick={() => setSelectedClass(cls)}
-                            className="absolute inset-x-1 rounded-lg border shadow-sm p-2 overflow-hidden hover:z-10 hover:shadow-md transition-all group select-none cursor-pointer"
+                            className={`absolute inset-x-1 rounded-lg border shadow-sm p-2 overflow-hidden hover:z-10 hover:shadow-md transition-all group select-none cursor-pointer${conflictMsg ? ' ring-2 ring-red-500/60' : ''}`}
                             style={{
                                 top: `${top}px`,
                                 height: `${height}px`,
-                                backgroundColor: cls.color,
-                                borderColor: cls.color.replace('100', '200'), // Darker border
+                                backgroundColor: conflictMsg ? '#FEF2F2' : cls.color,
+                                borderColor: conflictMsg ? '#F87171' : cls.color.replace('100', '200'),
                             }}
+                            title={conflictMsg}
                             >
+                                {/* Conflict indicator */}
+                                {conflictMsg && (
+                                    <div className="absolute top-0.5 left-0.5 z-20">
+                                        <FiAlertTriangle className="w-3 h-3 text-red-600" aria-hidden="true" />
+                                    </div>
+                                )}
+
                                 {/* Close Button - Absolute Top Right */}
                                 <button
                                     onClick={(e) => {
@@ -161,19 +172,20 @@ export default function WeeklyCalendar({ classes, onRemoveClass }: WeeklyCalenda
                                         onRemoveClass(cls.id);
                                     }}
                                     className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-1 hover:bg-black/5 rounded-full text-slate-600 transition-all cursor-pointer z-20"
+                                    aria-label={`Remove ${cls.code} from schedule`}
                                 >
                                     <FiX className="w-3.5 h-3.5" />
                                 </button>
 
                                 {/* Content - Vertically Centered */}
                                 <div className="flex flex-col justify-center items-center h-full gap-0.5 text-center">
-                                    <span className="font-bold text-sm text-slate-900 leading-tight">
+                                    <span className={`font-bold text-sm leading-tight${conflictMsg ? ' text-red-800' : ' text-slate-900'}`}>
                                         {cls.code}
                                     </span>
-                                    <div className="text-xs text-slate-700 font-medium leading-tight">
+                                    <div className={`text-xs font-medium leading-tight${conflictMsg ? ' text-red-700' : ' text-slate-700'}`}>
                                         {minutesToTime(startMinutes)} - {minutesToTime(endMinutes)}
                                     </div>
-                                    <div className="text-xs text-slate-600 truncate w-full px-1">
+                                    <div className={`text-xs truncate w-full px-1${conflictMsg ? ' text-red-600' : ' text-slate-600'}`}>
                                         {cls.location}
                                     </div>
                                 </div>

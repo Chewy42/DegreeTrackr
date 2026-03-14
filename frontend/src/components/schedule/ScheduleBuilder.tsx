@@ -539,6 +539,7 @@ export default function ScheduleBuilder() {
           <WeeklyCalendar
             classes={scheduledClasses}
             onRemoveClass={handleRemoveClass}
+            conflicts={conflictMap}
           />
         </div>
       </div>

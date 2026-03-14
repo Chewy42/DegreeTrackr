@@ -15,4 +15,18 @@ describe('resolveClerkRuntimeSession', () => {
 
     await expect(resolveClerkRuntimeSession(getToken)).rejects.toThrow('Unable to access your Clerk session.')
   })
+
+  it('propagates underlying Clerk errors upward so callers can handle them', async () => {
+    const getToken = vi.fn(async () => { throw new Error('Clerk SDK unavailable') })
+
+    await expect(resolveClerkRuntimeSession(getToken)).rejects.toThrow('Clerk SDK unavailable')
+  })
+
+  it('calls getToken exactly once per resolution attempt', async () => {
+    const getToken = vi.fn(async () => 'tok')
+
+    await resolveClerkRuntimeSession(getToken)
+
+    expect(getToken).toHaveBeenCalledTimes(1)
+  })
 })

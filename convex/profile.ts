@@ -1,5 +1,5 @@
 import { actionGeneric, makeFunctionReference, mutationGeneric, queryGeneric } from 'convex/server'
-import { v } from 'convex/values'
+import { ConvexError, v } from 'convex/values'
 
 import {
   onboardingAnswersValidator,
@@ -101,6 +101,16 @@ export const updateCurrentUserProfile = mutationGeneric({
   },
   handler: async (ctx, args) => {
     const { user } = await ensureCurrentUserRecord(ctx)
+    const MAX_NAME_LENGTH = 200
+    for (const [field, value] of Object.entries(args.patch) as [string, string | undefined][]) {
+      if (value === undefined) continue
+      if (value.trim() === '') {
+        throw new ConvexError(`${field} must not be an empty string.`)
+      }
+      if (value.length > MAX_NAME_LENGTH) {
+        throw new ConvexError(`${field} exceeds ${MAX_NAME_LENGTH} character limit.`)
+      }
+    }
     await ctx.db.patch(user._id, args.patch)
     const updated = await ctx.db.get(user._id)
     return {

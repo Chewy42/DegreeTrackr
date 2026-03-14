@@ -2,6 +2,8 @@
 // All ctx parameters are typed as `any` to remain compatible with both
 // queryGeneric / mutationGeneric / actionGeneric contexts.
 
+import { ConvexError } from 'convex/values'
+
 export async function getCurrentUserState(ctx: any): Promise<{ user: any | null }> {
   const identity = await ctx.auth.getUserIdentity()
   if (!identity) {
@@ -19,7 +21,7 @@ export async function getCurrentUserState(ctx: any): Promise<{ user: any | null 
 export async function ensureCurrentUserRecord(ctx: any): Promise<{ user: any }> {
   const identity = await ctx.auth.getUserIdentity()
   if (!identity) {
-    throw new Error('Unauthenticated — no user identity available.')
+    throw new ConvexError('Unauthenticated — no user identity available.')
   }
 
   const existing = await ctx.db
@@ -42,7 +44,7 @@ export async function ensureCurrentUserRecord(ctx: any): Promise<{ user: any }> 
 
   const user = await ctx.db.get(newId)
   if (!user) {
-    throw new Error('Failed to create user profile record.')
+    throw new ConvexError('Failed to create user profile record.')
   }
 
   return { user }

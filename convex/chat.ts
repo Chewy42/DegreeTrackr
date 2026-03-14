@@ -1,5 +1,5 @@
 import { actionGeneric, makeFunctionReference, mutationGeneric, queryGeneric } from 'convex/server'
-import { v } from 'convex/values'
+import { ConvexError, v } from 'convex/values'
 
 import { chatScopeValidator } from './contracts'
 import { legacyHydrationArgsValidator, readLegacyJson, requestLegacyJson } from './legacyHydration'
@@ -204,6 +204,8 @@ export const getCurrentOnboardingFlowState = queryGeneric({
   },
 })
 
+// RATE LIMIT: syncCurrentChatSessionFromLegacy should be rate-limited per user once
+// native Convex rate limiting is wired in (high write volume during migration).
 export const syncCurrentChatSessionFromLegacy = mutationGeneric({
   args: {
     scope: chatScopeValidator,
@@ -219,6 +221,20 @@ export const syncCurrentChatSessionFromLegacy = mutationGeneric({
   },
   handler: async (ctx, args) => {
     const { user } = await ensureCurrentUserRecord(ctx)
+    if (!args.title.trim()) {
+      throw new ConvexError('Session title must not be empty.')
+    }
+    if (!args.legacySessionId.trim()) {
+      throw new ConvexError('Legacy session ID must not be empty.')
+    }
+    if (args.messages.length > 500) {
+      throw new ConvexError('Message batch too large — maximum 500 messages per sync.')
+    }
+    for (const msg of args.messages) {
+      if (msg.content.length > 50_000) {
+        throw new ConvexError('Individual message content exceeds 50,000 character limit.')
+      }
+    }
     const now = Date.now()
     const requestedSession = args.existingSessionId
       ? await getOwnedSession(ctx, user._id, args.existingSessionId)
@@ -260,7 +276,7 @@ export const syncCurrentChatSessionFromLegacy = mutationGeneric({
     const session = await ctx.db.get(sessionId)
     const messages = await listSessionMessages(ctx, sessionId)
     if (!session) {
-      throw new Error('Unable to load the synchronized chat session.')
+      throw new ConvexError('Unable to load the synchronized chat session.')
     }
 
     return {
@@ -312,10 +328,7 @@ export const saveCurrentOnboardingFlow = mutationGeneric({
 export const resetCurrentOnboardingFlow = mutationGeneric({
   args: {},
   handler: async (ctx) => {
-    const { user } = await getCurrentUserState(ctx)
-    if (!user) {
-      return DEFAULT_ONBOARDING_FLOW_STATE
-    }
+    const { user } = await ensureCurrentUserRecord(ctx)
 
     const sessions = await ctx.db
       .query('chatSessions')
@@ -334,10 +347,7 @@ export const resetCurrentOnboardingFlow = mutationGeneric({
 export const deleteCurrentChatSession = mutationGeneric({
   args: { sessionId: v.id('chatSessions') },
   handler: async (ctx, args) => {
-    const { user } = await getCurrentUserState(ctx)
-    if (!user) {
-      return { deleted: false }
-    }
+    const { user } = await ensureCurrentUserRecord(ctx)
 
     const session = await getOwnedSession(ctx, user._id, args.sessionId)
     if (!session) {
@@ -353,10 +363,7 @@ export const deleteCurrentChatSession = mutationGeneric({
 export const clearCurrentChatSessions = mutationGeneric({
   args: { scope: chatScopeValidator, keepSessionId: v.optional(v.id('chatSessions')) },
   handler: async (ctx, args) => {
-    const { user } = await getCurrentUserState(ctx)
-    if (!user) {
-      return { cleared: 0 }
-    }
+    const { user } = await ensureCurrentUserRecord(ctx)
 
     const sessions = await ctx.db
       .query('chatSessions')
@@ -405,6 +412,8 @@ export const hydrateCurrentChatSessionsFromLegacy = actionGeneric({
   },
 })
 
+// RATE LIMIT: sendCurrentExploreMessage must be rate-limited per user (e.g. 10 req/min)
+// before this function is exposed beyond the legacy bridge path.
 export const sendCurrentExploreMessage = actionGeneric({
   args: {
     ...legacyHydrationArgsValidator,
@@ -412,6 +421,12 @@ export const sendCurrentExploreMessage = actionGeneric({
     sessionId: v.optional(v.id('chatSessions')),
   },
   handler: async (ctx, args) => {
+    if (!args.message.trim()) {
+      throw new ConvexError('Message must not be empty.')
+    }
+    if (args.message.length > 10_000) {
+      throw new ConvexError('Message exceeds 10,000 character limit.')
+    }
     const existingSession = args.sessionId ? await ctx.runQuery(getCurrentChatSessionRef, { sessionId: args.sessionId }) : null
 
     const response = await requestLegacyJson<LegacyChatResponse>('/chat/explore', args, {

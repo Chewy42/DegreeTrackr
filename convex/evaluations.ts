@@ -1,5 +1,5 @@
 import { actionGeneric, makeFunctionReference, mutationGeneric, queryGeneric } from 'convex/server'
-import { v } from 'convex/values'
+import { ConvexError, v } from 'convex/values'
 
 import { legacyHydrationArgsValidator, readLegacyJson } from './legacyHydration'
 import { ensureCurrentUserRecord, getCurrentUserState } from './userState'
@@ -30,6 +30,9 @@ type ProgramEvaluationMutationPayload = ProgramEvaluationPayload
 
 // ── Arg validators ─────────────────────────────────────────────────────────
 
+// NOTE: parsed_data is typed as v.any() to accommodate arbitrary legacy JSON
+// structures. It is stored as-is and not re-validated on read. If the schema
+// stabilizes, replace v.any() with a concrete validator.
 const programEvaluationPayloadValidator = v.object({
   email: v.optional(v.string()),
   uploaded_at: v.optional(v.string()),
@@ -109,10 +112,19 @@ export const syncCurrentProgramEvaluationFromLegacy = mutationGeneric({
   },
 })
 
+// RATE LIMIT: replaceCurrentProgramEvaluationFromUpload should be rate-limited
+// per user (e.g. 5 uploads/hour) once Convex rate limiting is available.
 export const replaceCurrentProgramEvaluationFromUpload = mutationGeneric({
   args: { payload: programEvaluationPayloadValidator },
   handler: async (ctx, args): Promise<ProgramEvaluationPayload> => {
     const { user } = await ensureCurrentUserRecord(ctx)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
+    if (args.payload.file_size_bytes !== undefined && args.payload.file_size_bytes > MAX_FILE_SIZE) {
+      throw new ConvexError('File size exceeds the 50 MB limit.')
+    }
+    if (args.payload.original_filename !== undefined && args.payload.original_filename.length > 500) {
+      throw new ConvexError('Original filename exceeds 500 character limit.')
+    }
     const fields = toDbFields(args.payload)
     const existing = await getProgramEvaluationRecord(ctx, user._id)
     if (existing) {
@@ -133,8 +145,7 @@ export const replaceCurrentProgramEvaluationFromUpload = mutationGeneric({
 export const clearCurrentProgramEvaluation = mutationGeneric({
   args: {},
   handler: async (ctx): Promise<null> => {
-    const { user } = await getCurrentUserState(ctx)
-    if (!user) return null
+    const { user } = await ensureCurrentUserRecord(ctx)
     const existing = await getProgramEvaluationRecord(ctx, user._id)
     if (existing) {
       await ctx.db.delete(existing._id)

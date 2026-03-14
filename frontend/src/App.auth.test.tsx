@@ -125,4 +125,37 @@ describe('App auth entry point', () => {
     // Unknown route should show a clean "not found" message instead
     expect(html).toContain('Page not found.')
   })
+
+  it('blocks access to all protected routes when unauthenticated (back-button protection after sign-out)', () => {
+    // After sign-out sessionState becomes 'unauthenticated'. Navigating back to any protected
+    // route via the browser back button must still show the auth screen, never authenticated content.
+    const protectedPaths = [
+      '/exploration-assistant',
+      '/settings',
+      '/schedule-gen-home',
+      '/progress-page',
+      '/',
+    ]
+
+    for (const path of protectedPaths) {
+      mockUseAuth.mockReturnValue({ ...baseContext, sessionState: 'unauthenticated' })
+      const html = renderApp(path)
+
+      expect(html).toContain('Continue with Google')
+      expect(html).not.toContain('Page not found.')
+      expect(html).not.toContain('Upload your program evaluation')
+    }
+  })
+
+  it('shows a neutral loading screen while session is being verified, blocking both auth and content', () => {
+    // During the 'checking' phase (initial load or retryBackendConnection) neither the auth
+    // form nor any authenticated content should be visible — only the preparation spinner.
+    mockUseAuth.mockReturnValue({ ...baseContext, sessionState: 'checking' })
+
+    const html = renderApp('/')
+
+    expect(html).toContain('Preparing your DegreeTrackr workspace')
+    expect(html).not.toContain('Continue with Google')
+    expect(html).not.toContain('Upload your program evaluation')
+  })
 })

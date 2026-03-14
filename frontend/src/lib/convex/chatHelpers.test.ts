@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { LegacyBoundaryError } from './legacyBoundary'
 
 // ── Mock the Convex client singleton ────────────────────────────────
 const mockQuery = vi.fn()
@@ -157,6 +158,62 @@ describe('chatHelpers', () => {
 
     expect(mockMutation).toHaveBeenCalledTimes(1)
     expect(result).toEqual({ sessionId: 'existing-sess', userMessageId: 'msg-2' })
+  })
+
+  // ── Error paths ─────────────────────────────────────────────────────
+
+  it('sendExploreUserMessage rejects when createChatSession mutation fails', async () => {
+    enableConvex()
+    mockMutation.mockRejectedValueOnce(new Error('Database unavailable'))
+
+    await expect(sendExploreUserMessage(null, 'What courses?')).rejects.toThrow('Database unavailable')
+    expect(mockMutation).toHaveBeenCalledTimes(1)
+  })
+
+  it('sendExploreUserMessage rejects when addMessage mutation fails after session is created', async () => {
+    enableConvex()
+    mockMutation
+      .mockResolvedValueOnce('new-sess')          // createSession succeeds
+      .mockRejectedValueOnce(new Error('Write failed')) // addMessage fails
+
+    await expect(sendExploreUserMessage(null, 'What courses?')).rejects.toThrow('Write failed')
+    expect(mockMutation).toHaveBeenCalledTimes(2)
+  })
+
+  it('sendCurrentExploreMessageConvex propagates plain action errors', async () => {
+    enableConvex()
+    mockAction.mockRejectedValueOnce(new Error('AI API timeout'))
+
+    await expect(
+      sendCurrentExploreMessageConvex({ jwt: 'tok', message: 'Hello', apiBaseUrl: 'http://localhost:5000/api' })
+    ).rejects.toThrow('AI API timeout')
+  })
+
+  it('sendCurrentExploreMessageConvex wraps legacy boundary errors from the action', async () => {
+    enableConvex()
+    mockAction.mockRejectedValueOnce(new Error('LEGACY_BOUNDARY_ERROR:503:Service temporarily unavailable'))
+
+    const err = await sendCurrentExploreMessageConvex({
+      jwt: 'tok',
+      message: 'Hello',
+      apiBaseUrl: 'http://localhost:5000/api',
+    }).catch(e => e)
+
+    expect(err).toBeInstanceOf(LegacyBoundaryError)
+    expect((err as LegacyBoundaryError).status).toBe(503)
+    expect(err.message).toBe('Service temporarily unavailable')
+  })
+
+  // ── Empty conversation state ─────────────────────────────────────────
+
+  it('getSessionMessagesConvex returns empty array for a new session with no messages', async () => {
+    enableConvex()
+    mockQuery.mockResolvedValue([])
+
+    const result = await getSessionMessagesConvex('new-empty-session')
+
+    expect(result).toEqual([])
+    expect(mockQuery.mock.calls[0]?.[1]).toEqual({ sessionId: 'new-empty-session' })
   })
 
   it('sendCurrentExploreMessageConvex calls legacy bridge action with resolved api base url', async () => {

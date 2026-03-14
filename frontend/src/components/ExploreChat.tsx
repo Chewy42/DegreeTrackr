@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   FiSend,
   FiPlus,
-  FiMessageSquare
+  FiMessageSquare,
+  FiRefreshCw,
 } from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -37,6 +38,7 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeSessionRef = useRef<string | null>(null);
@@ -120,6 +122,7 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
     setInput("");
     setSuggestions([]);
     setHistoryError(null);
+    setLastFailedMessage(null);
     setMessages(prev => [...prev, { role: "user", content: userMsg, timestamp: new Date() }]);
     setLoading(true);
 
@@ -143,7 +146,7 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
       setSuggestions(response.suggestions.slice(0, 3));
     } catch (err) {
       console.error(err);
-      setHistoryError(err instanceof Error ? err.message : "Sorry, I encountered an error. Please try again.");
+      setLastFailedMessage(userMsg);
       setMessages(prev => [...prev, { role: "assistant", content: "Sorry, I encountered an error. Please try again.", timestamp: new Date() }]);
     } finally {
       setLoading(false);
@@ -161,6 +164,7 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
     setLoading(false);
     setHistoryLoading(false);
     setHistoryError(null);
+    setLastFailedMessage(null);
     setSuggestions(DEFAULT_SUGGESTIONS);
     activeSessionRef.current = null;
     onSessionChange(null);
@@ -270,6 +274,18 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
 
       {/* Input Area */}
       <div className="p-4 bg-white border-t border-slate-100">
+        {lastFailedMessage && !loading && (
+          <div className="flex justify-center mb-2">
+            <button
+              type="button"
+              onClick={() => handleSend(undefined, lastFailedMessage)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors border border-amber-200"
+            >
+              <FiRefreshCw className="h-3 w-3" aria-hidden="true" />
+              Retry last message
+            </button>
+          </div>
+        )}
         {suggestions.length > 0 && !loading && (
           <div className="flex flex-wrap gap-2 mb-3 px-2">
             {suggestions.map((s, i) => (

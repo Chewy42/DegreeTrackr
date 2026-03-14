@@ -29,4 +29,22 @@ describe('resolveClerkRuntimeSession', () => {
 
     expect(getToken).toHaveBeenCalledTimes(1)
   })
+
+  it('treats an expired mid-session token as an auth failure and rejects with a clear message', async () => {
+    // Clerk returns null when the session TTL has elapsed — we must not silently swallow this
+    const getToken = vi.fn(async () => null as string | null)
+
+    await expect(resolveClerkRuntimeSession(getToken)).rejects.toThrow(
+      'Unable to access your Clerk session.'
+    )
+    expect(getToken).toHaveBeenCalledTimes(1)
+  })
+
+  it('propagates a network error that prevents token refresh, allowing callers to show retry UI', async () => {
+    // Simulates a connectivity failure during Clerk token resolution — must surface, not swallow
+    const networkError = new TypeError('Failed to fetch')
+    const getToken = vi.fn(async () => { throw networkError })
+
+    await expect(resolveClerkRuntimeSession(getToken)).rejects.toThrow('Failed to fetch')
+  })
 })

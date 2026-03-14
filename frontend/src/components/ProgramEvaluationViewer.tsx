@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FiEye, FiRefreshCw, FiFileText, FiX, FiUploadCloud } from "react-icons/fi";
 import { useAuth } from "../auth/AuthContext";
-import { convexApi, getConvexClient } from "../lib/convex";
-import type { ProgramEvaluationPayload } from "../lib/convex";
-import { apiUrl } from "../lib/runtimeConfig";
 import ProgramEvaluationUpload from "./ProgramEvaluationUpload";
+import { buildLegacyProgramEvaluationPreviewUrl, convexApi, getConvexClient, syncCurrentProgramEvaluationFromLegacy } from "../lib/convex";
+import { LegacyBoundaryError } from "../lib/convex/legacyBoundary";
 
 type ParsedPayload = {
   email: string;
@@ -29,7 +28,7 @@ const formatDate = (iso?: string) => {
 };
 
 export default function ProgramEvaluationViewer() {
-  const { jwt } = useAuth();
+  const { jwt, preferences } = useAuth();
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [parsed, setParsed] = useState<ParsedPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +40,7 @@ export default function ProgramEvaluationViewer() {
   const hasFile = loadState === "ready" && parsed;
   const directPdfUrl = useMemo(() => {
     if (!jwt) return null;
-    return `${apiUrl("/api/program-evaluations")}?token=${encodeURIComponent(jwt)}`;
+    return buildLegacyProgramEvaluationPreviewUrl(jwt);
   }, [jwt]);
 
   const revokePreview = useCallback(() => {
@@ -53,38 +52,47 @@ export default function ProgramEvaluationViewer() {
 
   const fetchParsed = useCallback(async () => {
     if (!jwt) return;
+
+    const convexClient = getConvexClient();
+    if (!convexClient) {
+      setParsed(null);
+      setLoadState("error");
+      setError("Program evaluations require the Convex-backed app runtime.");
+      return;
+    }
+
     setLoadState("loading");
     setError(null);
+
     try {
-      const client = getConvexClient();
-      if (!client) {
-        throw new Error("Convex must be configured to view your program evaluation.");
-      }
+      const nextData =
+        (await convexClient.query(convexApi.evaluations.getCurrentProgramEvaluation, {})) ??
+        (preferences.hasProgramEvaluation
+          ? await syncCurrentProgramEvaluationFromLegacy({
+              jwt,
+              hydrateProgramEvaluation: (args) =>
+                convexClient.action(convexApi.evaluations.hydrateCurrentProgramEvaluationFromLegacy, args),
+            })
+          : null);
 
-      const payload: ProgramEvaluationPayload | null = await client.query(
-        convexApi.evaluations.getCurrentProgramEvaluation,
-        {},
-      );
-
-      if (!payload) {
+      if (!nextData) {
         setParsed(null);
         setLoadState("empty");
         return;
       }
 
-      setParsed({
-        email: payload.email ?? "",
-        uploaded_at: payload.uploaded_at,
-        original_filename: payload.original_filename,
-        parsed_data: payload.parsed_data as Record<string, unknown> | undefined,
-      });
+      setParsed(nextData as ParsedPayload);
       setLoadState("ready");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to load program evaluation.";
+      const message = err instanceof LegacyBoundaryError
+        ? err.message
+        : err instanceof Error
+          ? err.message
+          : "Unable to load program evaluation.";
       setError(message);
       setLoadState("error");
     }
-  }, [jwt]);
+  }, [jwt, preferences.hasProgramEvaluation]);
 
   const openPdfModal = useCallback(() => {
     setModalOpen(true);
@@ -111,10 +119,10 @@ export default function ProgramEvaluationViewer() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200/70 bg-white shadow-sm p-4 sm:p-5">
+      <div className="rounded-2xl border border-border-subtle/70 bg-surface-elevated p-4 shadow-sm sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600" aria-hidden="true">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary" aria-hidden="true">
               <FiFileText className="text-xl" />
             </div>
             <div>
@@ -128,14 +136,14 @@ export default function ProgramEvaluationViewer() {
             type="button"
             onClick={fetchParsed}
             aria-busy={loadState === "loading" ? true : undefined}
-            className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-text-primary ring-1 ring-slate-200 shadow-sm transition-colors duration-150 hover:bg-slate-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-elevated px-3 py-2 text-xs font-medium text-text-primary shadow-sm transition-colors duration-150 hover:bg-surface-muted"
           >
             <FiRefreshCw className="text-sm" aria-hidden="true" />
             Refresh
           </button>
         </div>
 
-        <div className="mt-4 rounded-xl border border-slate-200/70 bg-slate-50 px-4 py-3 text-sm text-text-primary">
+        <div className="mt-4 rounded-xl border border-border-subtle/70 bg-surface-muted px-4 py-3 text-sm text-text-primary">
           {loadState === "loading" ? (
             <span role="status" aria-live="polite" className="text-text-secondary">Loading program evaluation…</span>
           ) : loadState === "error" ? (
@@ -160,7 +168,7 @@ export default function ProgramEvaluationViewer() {
             <button
               type="button"
               onClick={() => setReplaceModalOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold bg-white text-slate-700 ring-1 ring-slate-200 shadow-sm hover:bg-slate-50 transition-colors duration-150"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border-subtle bg-surface-elevated px-4 py-2 text-sm font-semibold text-text-primary shadow-sm transition-colors duration-150 hover:bg-surface-muted"
             >
               <FiUploadCloud className="text-sm" aria-hidden="true" />
               Replace PDF
@@ -172,8 +180,8 @@ export default function ProgramEvaluationViewer() {
               className={[
                 "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors duration-150",
                 loadState === "ready"
-                  ? "bg-blue-600 text-white shadow-sm hover:bg-blue-500"
-                  : "bg-blue-200 text-blue-50 cursor-not-allowed",
+                  ? "bg-primary text-primary-contrast shadow-sm hover:bg-primary-emphasis"
+                  : "bg-primary/35 text-primary-contrast/80 cursor-not-allowed",
               ].join(" ")}
             >
               <FiEye className="text-sm" aria-hidden="true" />
@@ -186,7 +194,7 @@ export default function ProgramEvaluationViewer() {
       {replaceModalOpen ? (
         <div className="fixed inset-0 z-50 bg-black/40 overflow-y-auto">
           <div className="min-h-full flex items-start justify-center px-4 py-8">
-            <div role="dialog" aria-modal="true" aria-labelledby="replace-program-evaluation-title" className="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200 p-6 my-auto">
+            <div role="dialog" aria-modal="true" aria-labelledby="replace-program-evaluation-title" className="relative my-auto w-full max-w-2xl rounded-2xl bg-surface shadow-2xl ring-1 ring-border-subtle p-6">
               <button
                 type="button"
                 onClick={() => setReplaceModalOpen(false)}
@@ -196,7 +204,7 @@ export default function ProgramEvaluationViewer() {
                 <FiX className="text-lg text-text-primary" aria-hidden="true" />
               </button>
               <h2 id="replace-program-evaluation-title" className="text-lg font-semibold mb-4">Replace Program Evaluation</h2>
-              <p className="text-sm text-slate-500 mb-6">
+              <p className="mb-6 text-sm text-text-secondary">
                 Uploading a new evaluation will reset your onboarding progress and chat history.
               </p>
               <ProgramEvaluationUpload onSuccess={() => {
@@ -210,7 +218,7 @@ export default function ProgramEvaluationViewer() {
 
       {modalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-8">
-          <div role="dialog" aria-modal="true" aria-labelledby="program-evaluation-preview-title" className="relative w-full max-w-5xl rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200">
+          <div role="dialog" aria-modal="true" aria-labelledby="program-evaluation-preview-title" className="relative w-full max-w-5xl rounded-2xl bg-surface shadow-2xl ring-1 ring-border-subtle">
             <button
               type="button"
               onClick={() => {
@@ -228,7 +236,7 @@ export default function ProgramEvaluationViewer() {
                 {parsed?.email ? `For ${parsed.email}` : "Signed-in account"}
               </div>
             </div>
-            <div className="h-[70vh] overflow-hidden border-t border-slate-200/70">
+            <div className="h-[70vh] overflow-hidden border-t border-border-subtle/70">
               {modalLoading && !previewUrl ? (
                 <div role="status" aria-live="polite" className="flex h-full items-center justify-center text-sm text-text-secondary">
                   Opening PDF…
@@ -242,9 +250,9 @@ export default function ProgramEvaluationViewer() {
                   onLoad={() => setModalLoading(false)}
                   onError={() => {
                     setModalLoading(false);
-                    setError("Unable to load PDF. Check backend availability or refresh your session.");
-                  }}
-                />
+                     setError("Unable to load PDF. The preview still uses the legacy document service.");
+                   }}
+                 />
               ) : (
                 <div className="flex h-full items-center justify-center px-6 text-sm text-danger text-center">
                   <div role="alert" aria-live="assertive" className="space-y-3">
@@ -253,7 +261,7 @@ export default function ProgramEvaluationViewer() {
                       <button
                         type="button"
                         onClick={openPdfModal}
-                        className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-text-primary ring-1 ring-slate-200 shadow-sm transition-colors duration-150 hover:bg-slate-50"
+                        className="inline-flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-elevated px-3 py-2 text-xs font-medium text-text-primary shadow-sm transition-colors duration-150 hover:bg-surface-muted"
                       >
                         Retry
                       </button>

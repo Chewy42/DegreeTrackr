@@ -13,7 +13,7 @@ export default function AuthTabs({ mode, onChange }: AuthTabsProps) {
 	];
 
 	return (
-		<div role="tablist" aria-label="Authentication mode" className={'bg-surface-muted/80 border border-slate-200/80 rounded-full p-1.5 flex items-center gap-1'}>
+		<div role="tablist" aria-label="Authentication mode" className={'bg-surface-muted/80 border border-border-subtle/80 rounded-full p-1.5 flex items-center gap-1'}>
 			{entries.map(({ key, label }) => {
 				const active = mode === key;
 				return (
@@ -26,8 +26,8 @@ export default function AuthTabs({ mode, onChange }: AuthTabsProps) {
 						className={
 							'flex-1 rounded-full text-sm font-medium px-3 py-2.5 transition-colors duration-150 ' +
 							(active
-								? 'bg-white text-text-primary shadow-sm'
-								: 'text-text-secondary hover:text-text-primary hover:bg-white/40')
+								? 'bg-surface-elevated text-text-primary shadow-sm'
+								: 'text-text-secondary hover:text-text-primary hover:bg-surface-elevated/70')
 						}
 					>
 						{label}

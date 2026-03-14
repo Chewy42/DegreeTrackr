@@ -4,7 +4,6 @@ import { useQuery } from 'convex/react'
 import { buildClerkRedirectUrls, extractClerkErrorMessage } from './clerkAuth'
 import { convexApi } from '../lib/convex/api'
 import { isConvexFeatureEnabled } from '../lib/convex/config'
-import { apiUrl, hasConfiguredLegacyApiBaseUrl } from '../lib/runtimeConfig'
 
 export type AuthMode = 'sign_in' | 'sign_up'
 
@@ -14,13 +13,7 @@ export type AuthState = {
   confirmPassword: string
 }
 
-export type SessionState =
-  | 'checking'
-  | 'unauthenticated'
-  | 'authenticated'
-  | 'pending_confirmation'
-  | 'backend_unavailable'
-  | 'legacy_bridge_required'
+export type SessionState = 'checking' | 'unauthenticated' | 'authenticated' | 'pending_confirmation'
 
 export type UserPreferences = {
   theme?: 'light' | 'dark'
@@ -36,7 +29,6 @@ export type AuthContextValue = {
   loading: boolean
   error: string | null
   preferences: UserPreferences
-  preferencesReady: boolean
   jwt: string | null
   pendingEmail: string | null
   setMode: (mode: AuthMode) => void
@@ -52,36 +44,10 @@ export type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
-const LOCAL_SESSION_KEY = 'degreetrackr.auth.jwt'
 const LOCAL_PREF_KEY = 'degreetrackr.preferences'
 
 type Props = {
   children: React.ReactNode
-}
-
-type SessionExchangeResponse = {
-  token: string
-  preferences?: UserPreferences
-}
-
-function isValidJwtFormat(token: string): boolean {
-  if (!token || typeof token !== 'string') {
-    return false
-  }
-  const parts = token.split('.')
-  if (parts.length !== 3) {
-    return false
-  }
-  try {
-    for (const part of parts) {
-      if (!part || !/^[A-Za-z0-9_-]+$/.test(part)) {
-        return false
-      }
-    }
-    return true
-  } catch {
-    return false
-  }
 }
 
 function safeGetLocalStorage(key: string): string | null {
@@ -108,119 +74,15 @@ function safeParseJson<T>(json: string | null, fallback: T): T {
   }
 }
 
-async function exchangeClerkSession(clerkToken: string): Promise<SessionExchangeResponse> {
-  const response = await fetch(apiUrl('/api/auth/clerk/session'), {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${clerkToken}`,
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ stayLoggedIn: true }),
-  })
-
-  const data = await response.json().catch(() => ({}))
-
-  if (!response.ok) {
-    const message = typeof data?.error === 'string' ? data.error : 'Unable to sync your Clerk session.'
-    throw new Error(message)
+export async function resolveClerkRuntimeSession(
+  getToken: () => Promise<string | null>,
+): Promise<string> {
+  const clerkToken = await getToken()
+  if (!clerkToken) {
+    throw new Error('Unable to access your Clerk session.')
   }
 
-  if (typeof data?.token !== 'string' || !isValidJwtFormat(data.token)) {
-    throw new Error('Received an invalid application session token.')
-  }
-
-  return data as SessionExchangeResponse
-}
-
-async function checkBackendHealth(): Promise<boolean> {
-  try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000)
-    
-    const res = await fetch(apiUrl('/api/health'), {
-      method: 'GET',
-      signal: controller.signal
-    })
-    
-    clearTimeout(timeoutId)
-    return res.ok
-  } catch (err) {
-    console.error('Backend health check failed:', err)
-    return false
-  }
-}
-
-function isNetworkError(err: unknown): boolean {
-  return err instanceof TypeError && (
-    (err.message.toLowerCase().includes('network') ||
-     err.message.toLowerCase().includes('fetch') ||
-     err.message.toLowerCase().includes('failed'))
-  )
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
-type LegacyBridgeGateOptions = {
-  isConvexEnabled: boolean
-  isSignedIn: boolean
-  hasExplicitLegacyApiBaseUrl: boolean
-  checkBackendHealth: () => Promise<boolean>
-}
-
-export async function shouldRequireLegacyBridgeSetup({
-  isConvexEnabled,
-  isSignedIn,
-  hasExplicitLegacyApiBaseUrl,
-  checkBackendHealth,
-}: LegacyBridgeGateOptions): Promise<boolean> {
-  if (!isConvexEnabled || !isSignedIn || hasExplicitLegacyApiBaseUrl) {
-    return false
-  }
-
-  return !(await checkBackendHealth())
-}
-
-type SessionBootstrapState =
-  | 'unauthenticated'
-  | 'legacy_bridge_required'
-  | 'backend_unavailable'
-  | 'ready'
-
-export async function resolveSessionBootstrapState({
-  isConvexEnabled,
-  isSignedIn,
-  hasExplicitLegacyApiBaseUrl,
-  checkBackendHealth,
-}: LegacyBridgeGateOptions): Promise<SessionBootstrapState> {
-  if (!isSignedIn) {
-    return 'unauthenticated'
-  }
-
-  let backendHealth: boolean | undefined
-  const ensureBackendHealth = async () => {
-    if (backendHealth == null) {
-      backendHealth = await checkBackendHealth()
-    }
-
-    return backendHealth
-  }
-
-  if (
-    isConvexEnabled &&
-    !hasExplicitLegacyApiBaseUrl &&
-    !(await ensureBackendHealth())
-  ) {
-    return 'legacy_bridge_required'
-  }
-
-  if (!(await ensureBackendHealth())) {
-    return 'backend_unavailable'
-  }
-
-  return 'ready'
+  return clerkToken
 }
 
 export function AuthProvider({ children }: Props) {
@@ -235,28 +97,13 @@ export function AuthProvider({ children }: Props) {
   const [jwt, setJwt] = useState<string | null>(null)
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
 
-  const convexEnabled = isConvexFeatureEnabled()
   const convexUserPrefs = useQuery(
     convexApi.profile.getCurrentUserPreferences,
-    convexEnabled ? {} : 'skip'
+    isConvexFeatureEnabled() ? {} : 'skip'
   )
-
-  const preferencesReady = !convexEnabled || convexUserPrefs !== undefined || Object.keys(preferences).length > 0
 
   const persistJwt = useCallback((token: string | null) => {
     setJwt(token)
-    if (typeof window === 'undefined') {
-      return
-    }
-    try {
-      if (token) {
-        window.localStorage.setItem(LOCAL_SESSION_KEY, token)
-      } else {
-        window.localStorage.removeItem(LOCAL_SESSION_KEY)
-      }
-    } catch (err) {
-      console.error('Failed to persist JWT to localStorage:', err)
-    }
   }, [])
 
   const persistPreferences = useCallback((next: UserPreferences) => {
@@ -285,18 +132,12 @@ export function AuthProvider({ children }: Props) {
   }, [persistJwt])
 
   const finalizeAuthenticatedSession = useCallback(async () => {
-    const clerkToken = await getToken()
-    if (!clerkToken) {
-      throw new Error('Unable to access your Clerk session.')
-    }
-
-    const data = await exchangeClerkSession(clerkToken)
-    persistJwt(data.token)
-    persistPreferences(data.preferences ?? {})
+    const clerkToken = await resolveClerkRuntimeSession(getToken)
+    persistJwt(clerkToken)
     setPendingEmail(null)
     setError(null)
     setSessionState('authenticated')
-  }, [getToken, persistJwt, persistPreferences])
+  }, [getToken, persistJwt])
 
   const signOut = useCallback(() => {
     clearLocalSession()
@@ -305,30 +146,10 @@ export function AuthProvider({ children }: Props) {
   }, [clearLocalSession, clerk])
 
   const syncSessionState = useCallback(async () => {
-    const bootstrapState = await resolveSessionBootstrapState({
-      isConvexEnabled: isConvexFeatureEnabled(),
-      isSignedIn: Boolean(isSignedIn),
-      hasExplicitLegacyApiBaseUrl: hasConfiguredLegacyApiBaseUrl(),
-      checkBackendHealth,
-    })
-
-    if (bootstrapState === 'unauthenticated') {
+    if (!isSignedIn) {
       clearLocalSession()
       setError(null)
       setSessionState('unauthenticated')
-      return
-    }
-
-    if (bootstrapState === 'legacy_bridge_required') {
-      persistJwt(null)
-      setPendingEmail(null)
-      setError(null)
-      setSessionState('legacy_bridge_required')
-      return
-    }
-
-    if (bootstrapState === 'backend_unavailable') {
-      setSessionState('backend_unavailable')
       return
     }
 
@@ -339,7 +160,7 @@ export function AuthProvider({ children }: Props) {
       setError(extractClerkErrorMessage(err, 'Unable to finish your Clerk sign-in.'))
       setSessionState('unauthenticated')
     }
-  }, [clearLocalSession, finalizeAuthenticatedSession, isSignedIn, persistJwt])
+  }, [clearLocalSession, finalizeAuthenticatedSession, isSignedIn])
 
   const retryBackendConnection = useCallback(async () => {
     if (!clerkLoaded) {
@@ -387,22 +208,13 @@ export function AuthProvider({ children }: Props) {
   }, [convexUserPrefs, persistPreferences])
 
   const refreshPreferences = useCallback(async () => {
-    if (!jwt) return
-
-    // Convex is now the source of truth for preference refreshes.
     if (convexUserPrefs != null) {
       persistPreferences(convexUserPrefs as UserPreferences)
       return
     }
 
-    persistPreferences(safeParseJson<UserPreferences>(safeGetLocalStorage(LOCAL_PREF_KEY), preferences))
-  }, [convexUserPrefs, jwt, persistPreferences, preferences])
-
-  useEffect(() => {
-    if (jwt && sessionState === 'authenticated') {
-      refreshPreferences()
-    }
-  }, [jwt, sessionState, refreshPreferences])
+    persistPreferences(safeParseJson<UserPreferences>(safeGetLocalStorage(LOCAL_PREF_KEY), {}))
+  }, [convexUserPrefs, persistPreferences])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -461,7 +273,6 @@ export function AuthProvider({ children }: Props) {
       loading,
       error,
       preferences,
-      preferencesReady,
       jwt,
       pendingEmail,
       setMode,
@@ -474,7 +285,7 @@ export function AuthProvider({ children }: Props) {
       mergePreferences,
       retryBackendConnection,
     }),
-    [sessionState, mode, auth, loading, error, preferences, preferencesReady, jwt, pendingEmail, handleGoogleAuth, mergePreferences, signOut, refreshPreferences, retryBackendConnection]
+    [sessionState, mode, auth, loading, error, preferences, jwt, pendingEmail, handleGoogleAuth, mergePreferences, signOut, refreshPreferences, retryBackendConnection]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

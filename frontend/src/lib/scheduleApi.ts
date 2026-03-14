@@ -2,8 +2,8 @@
  * Schedule API functions for the schedule builder feature.
  * Provides typed API calls for class search, validation, and requirements.
  *
- * Snapshot functions prefer Convex when the client is available and
- * fall back to the Flask REST API otherwise.
+ * Snapshot functions require Convex. Legacy Flask snapshot fallbacks are
+ * intentionally disabled so frontend runtime does not silently depend on `/api/*`.
  */
 import type {
 	  ClassSection,
@@ -121,6 +121,14 @@ export function validateScheduledClassesLocally(classes: ClassSection[]): Schedu
 		totalCredits,
 		warnings,
 	};
+}
+
+function requireSnapshotClient() {
+  const client = getConvexClient();
+  if (!client) {
+    throw new Error('Schedule snapshots require Convex and are unavailable in legacy mode.');
+  }
+  return client;
 }
 
 /**
@@ -332,7 +340,6 @@ function convexSnapshotToFrontend(r: ScheduleSnapshotResult): ScheduleSnapshot {
 
 /**
  * Save the current schedule as a named snapshot for the authenticated user.
- * Prefers Convex; falls back to Flask if the Convex client is unavailable.
  */
 export async function createScheduleSnapshot(
 	name: string,
@@ -340,100 +347,34 @@ export async function createScheduleSnapshot(
 	totalCredits: number,
 	jwt: string,
 ): Promise<ScheduleSnapshot> {
-	const client = getConvexClient();
-	if (client) {
-		const result = await client.mutation(convexApi.scheduleSnapshots.createCurrentScheduleSnapshot, {
-			name,
-			classIds,
-			totalCredits,
-		});
-		return convexSnapshotToFrontend(result);
-	}
-
-	// Flask fallback
-	const res = await fetch(`${API_BASE}/schedule/snapshots`, {
-		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${jwt}`,
-			Accept: 'application/json',
-			'Content-Type': 'application/json',
-		},
-		body: JSON.stringify({
-			name,
-			class_ids: classIds,
-			total_credits: totalCredits,
-		}),
+	void jwt;
+	const client = requireSnapshotClient();
+	const result = await client.mutation(convexApi.scheduleSnapshots.createCurrentScheduleSnapshot, {
+		name,
+		classIds,
+		totalCredits,
 	});
-
-	if (!res.ok) {
-		let message = `Failed to save schedule snapshot: ${res.status}`;
-		try {
-			const data = await res.json();
-			if (data?.error) {
-				message = data.error;
-			}
-		} catch {
-			// Ignore JSON parse errors when reading error response
-		}
-		throw new Error(message);
-	}
-
-	return res.json();
+	return convexSnapshotToFrontend(result);
 }
 
 /**
  * Get all schedule snapshots for the authenticated user.
- * Prefers Convex; falls back to Flask if the Convex client is unavailable.
  */
 export async function listScheduleSnapshots(jwt: string): Promise<ScheduleSnapshot[]> {
-	const client = getConvexClient();
-	if (client) {
-		const results = await client.query(convexApi.scheduleSnapshots.listCurrentScheduleSnapshots, {});
-		return results.map(convexSnapshotToFrontend);
-	}
-
-	// Flask fallback
-	const res = await fetch(`${API_BASE}/schedule/snapshots`, {
-		headers: {
-			Authorization: `Bearer ${jwt}`,
-			Accept: 'application/json',
-		},
-	});
-
-	if (!res.ok) {
-		throw new Error(`Failed to load schedule snapshots: ${res.status}`);
-	}
-
-	const data = await res.json();
-	// Backend returns { snapshots: [...] }
-	return Array.isArray(data.snapshots) ? data.snapshots : [];
+	void jwt;
+	const client = requireSnapshotClient();
+	const results = await client.query(convexApi.scheduleSnapshots.listCurrentScheduleSnapshots, {});
+	return results.map(convexSnapshotToFrontend);
 }
 
 /**
  * Delete a schedule snapshot by ID for the authenticated user.
- * Prefers Convex; falls back to Flask if the Convex client is unavailable.
  */
 export async function deleteScheduleSnapshot(
 	snapshotId: string,
 	jwt: string,
 ): Promise<void> {
-	const client = getConvexClient();
-	if (client) {
-		await client.mutation(convexApi.scheduleSnapshots.deleteCurrentScheduleSnapshot, { id: snapshotId });
-		return;
-	}
-
-	// Flask fallback
-	const res = await fetch(`${API_BASE}/schedule/snapshots/${snapshotId}`, {
-		method: 'DELETE',
-		headers: {
-			Authorization: `Bearer ${jwt}`,
-			Accept: 'application/json',
-		},
-	});
-
-	if (!res.ok && res.status !== 404) {
-		// 404 can be safely treated as "already deleted"
-		throw new Error(`Failed to delete schedule snapshot: ${res.status}`);
-	}
+	void jwt;
+	const client = requireSnapshotClient();
+	await client.mutation(convexApi.scheduleSnapshots.deleteCurrentScheduleSnapshot, { id: snapshotId });
 }

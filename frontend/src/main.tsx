@@ -8,6 +8,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import { getConvexClient } from './lib/convex/client'
 import { getConvexProviderState } from './lib/convex/config'
 import { ConvexClerkProviderBoundary } from './lib/convex/provider'
+import { AppThemeProvider } from './theme/AppThemeProvider'
 import './index.css'
 
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
@@ -20,11 +21,13 @@ const convexClient = getConvexClient()
 const convexState = getConvexProviderState()
 
 const appInner = (
-  <AuthProvider>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </AuthProvider>
+  <AppThemeProvider>
+    <AuthProvider>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </AuthProvider>
+  </AppThemeProvider>
 )
 
 createRoot(document.getElementById('root')!).render(

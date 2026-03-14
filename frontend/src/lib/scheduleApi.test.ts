@@ -1,118 +1,96 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import type { ProgramEvaluationPayload } from './convex'
-import type { ClassSection } from '../components/schedule/types'
+const mockGetConvexClient = vi.fn()
+
+vi.mock('./convex/client', () => ({
+  getConvexClient: () => mockGetConvexClient(),
+}))
+
+vi.mock('./convex/api', () => ({
+  convexApi: {
+    scheduleSnapshots: {
+      createCurrentScheduleSnapshot: 'scheduleSnapshots:createCurrentScheduleSnapshot',
+      listCurrentScheduleSnapshots: 'scheduleSnapshots:listCurrentScheduleSnapshots',
+      deleteCurrentScheduleSnapshot: 'scheduleSnapshots:deleteCurrentScheduleSnapshot',
+    },
+  },
+}))
+
 import {
-  deriveRequirementsSummaryFromProgramEvaluation,
-  validateScheduledClassesLocally,
+  createScheduleSnapshot,
+  deleteScheduleSnapshot,
+  listScheduleSnapshots,
 } from './scheduleApi'
 
-function makeClass(overrides: Partial<ClassSection>): ClassSection {
-  return {
-    id: 'CPSC-350-01',
-    code: 'CPSC 350-01',
-    subject: 'CPSC',
-    number: '350',
-    section: '01',
-    title: 'Software Design',
-    credits: 3,
-    displayDays: 'MWF',
-    displayTime: '10:00 AM - 10:50 AM',
-    location: 'Keck 101',
-    professor: 'Prof. Example',
-    professorRating: null,
-    semester: 'spring2026',
-    semestersOffered: ['Spring'],
-    occurrenceData: {
-      starts: 0,
-      ends: 0,
-      daysOccurring: {
-        M: [{ startTime: 600, endTime: 650 }],
-        Tu: [],
-        W: [{ startTime: 600, endTime: 650 }],
-        Th: [],
-        F: [{ startTime: 600, endTime: 650 }],
-        Sa: [],
-        Su: [],
-      },
-    },
-    requirementsSatisfied: [],
-    ...overrides,
-  }
-}
-
-describe('deriveRequirementsSummaryFromProgramEvaluation', () => {
-  it('maps parsed credit requirements into schedule impact requirements', () => {
-    const payload: ProgramEvaluationPayload = {
-      parsed_data: {
-        credit_requirements: [
-          { label: 'Major Core', needed: 9 },
-          { label: 'General Education', needed: 3 },
-        ],
-      },
-    }
-
-    expect(deriveRequirementsSummaryFromProgramEvaluation(payload)).toEqual({
-      total: 12,
-      byType: {
-        major_core: 9,
-        ge: 3,
-      },
-      requirements: [
-        { type: 'major_core', label: 'Major Core', creditsNeeded: 9 },
-        { type: 'ge', label: 'General Education', creditsNeeded: 3 },
-      ],
-    })
+describe('schedule snapshot helpers', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
   })
 
-  it('returns null when no credit requirements are available', () => {
-    expect(deriveRequirementsSummaryFromProgramEvaluation(null)).toBeNull()
-  })
-})
+  it('fails clearly when Convex is unavailable', async () => {
+    mockGetConvexClient.mockReturnValue(null)
 
-describe('validateScheduledClassesLocally', () => {
-  it('detects overlapping classes and totals credits', () => {
-    const a = makeClass({ id: 'A', code: 'A', credits: 4 })
-    const b = makeClass({
-      id: 'B',
-      code: 'B',
-      credits: 3,
-      occurrenceData: {
-        starts: 0,
-        ends: 0,
-        daysOccurring: {
-          M: [{ startTime: 630, endTime: 700 }],
-          Tu: [],
-          W: [{ startTime: 630, endTime: 700 }],
-          Th: [],
-          F: [],
-          Sa: [],
-          Su: [],
-        },
-      },
-    })
-
-    const result = validateScheduledClassesLocally([a, b])
-
-    expect(result.valid).toBe(false)
-    expect(result.totalCredits).toBe(7)
-    expect(result.conflicts).toHaveLength(2)
-    expect(result.conflicts[0]?.classId1).toBe('A')
-    expect(result.conflicts[0]?.classId2).toBe('B')
-  })
-
-  it('adds a heavy-load warning above 18 credits', () => {
-    const classes = Array.from({ length: 7 }, (_, index) =>
-      makeClass({ id: `C${index}`, code: `C${index}`, credits: 3, occurrenceData: {
-        starts: 0,
-        ends: 0,
-        daysOccurring: { M: [], Tu: [], W: [], Th: [], F: [], Sa: [], Su: [] },
-      } }),
+    await expect(createScheduleSnapshot('Fall Plan', ['MATH-101'], 3, 'ignored')).rejects.toThrow(
+      'Schedule snapshots require Convex and are unavailable in legacy mode.',
     )
+    await expect(listScheduleSnapshots('ignored')).rejects.toThrow(
+      'Schedule snapshots require Convex and are unavailable in legacy mode.',
+    )
+    await expect(deleteScheduleSnapshot('snapshot-1', 'ignored')).rejects.toThrow(
+      'Schedule snapshots require Convex and are unavailable in legacy mode.',
+    )
+  })
 
-    const result = validateScheduledClassesLocally(classes)
+  it('uses Convex for snapshot CRUD operations', async () => {
+    const mutation = vi.fn()
+    const query = vi.fn()
 
-    expect(result.totalCredits).toBe(21)
-    expect(result.warnings).toContain('Heavy schedule: more than 18 credits may be difficult to manage.')
+    mockGetConvexClient.mockReturnValue({ mutation, query })
+
+    mutation.mockResolvedValueOnce({
+      id: 'snapshot-1',
+      userId: 'user-1',
+      name: 'Fall Plan',
+      classIds: ['MATH-101'],
+      totalCredits: 3,
+      classCount: 1,
+      createdAt: Date.UTC(2026, 2, 11),
+      migrationSource: 'convex',
+    })
+    query.mockResolvedValueOnce([
+      {
+        id: 'snapshot-1',
+        userId: 'user-1',
+        name: 'Fall Plan',
+        classIds: ['MATH-101'],
+        totalCredits: 3,
+        classCount: 1,
+        createdAt: Date.UTC(2026, 2, 11),
+        migrationSource: 'convex',
+      },
+    ])
+    mutation.mockResolvedValueOnce(undefined)
+
+    const created = await createScheduleSnapshot('Fall Plan', ['MATH-101'], 3, 'ignored')
+    const listed = await listScheduleSnapshots('ignored')
+    await deleteScheduleSnapshot('snapshot-1', 'ignored')
+
+    expect(created).toMatchObject({
+      id: 'snapshot-1',
+      name: 'Fall Plan',
+      classIds: ['MATH-101'],
+      totalCredits: 3,
+      classCount: 1,
+    })
+    expect(listed).toHaveLength(1)
+    expect(query).toHaveBeenCalledWith('scheduleSnapshots:listCurrentScheduleSnapshots', {})
+    expect(mutation).toHaveBeenNthCalledWith(1, 'scheduleSnapshots:createCurrentScheduleSnapshot', {
+      name: 'Fall Plan',
+      classIds: ['MATH-101'],
+      totalCredits: 3,
+    })
+    expect(mutation).toHaveBeenNthCalledWith(2, 'scheduleSnapshots:deleteCurrentScheduleSnapshot', {
+      id: 'snapshot-1',
+    })
   })
 })

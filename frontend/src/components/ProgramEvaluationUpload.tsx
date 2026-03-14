@@ -1,8 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { FiUploadCloud, FiFileText, FiEye, FiArrowRight, FiExternalLink, FiLoader } from "react-icons/fi";
 import { useAuth } from "../auth/AuthContext";
-import { convexApi, getConvexClient } from "../lib/convex";
-import { apiUrl } from "../lib/runtimeConfig";
+import { convexApi, getConvexClient, buildLegacyProgramEvaluationPreviewUrl, replaceCurrentProgramEvaluationFromUpload } from "../lib/convex";
 
 type UploadState = "idle" | "uploading" | "uploaded";
 
@@ -19,7 +18,7 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
   const [isDragging, setIsDragging] = useState(false);
 
   const resetPreviewUrl = () => {
-    if (previewUrl) {
+    if (previewUrl?.startsWith("blob:")) {
       URL.revokeObjectURL(previewUrl);
     }
   };
@@ -71,58 +70,35 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
     if (!file || !jwt || uploadState === "uploading") {
       return;
     }
+
+    const convexClient = getConvexClient();
+    if (!convexClient) {
+      setError("Program evaluation uploads require the Convex-backed app runtime.");
+      return;
+    }
+
     setUploadState("uploading");
     setError(null);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const response = await fetch(apiUrl("/api/program-evaluations"), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-        },
-        body: formData,
+      await replaceCurrentProgramEvaluationFromUpload({
+        jwt,
+        file,
+        replaceProgramEvaluation: (args) =>
+          convexClient.mutation(convexApi.evaluations.replaceCurrentProgramEvaluationFromUpload, args),
       });
-      
-      if (response.status === 401) {
-        signOut();
-        return;
-      }
-
-      const body = await response.json().catch(() => ({} as { error?: string; parsed?: Record<string, unknown>; filename?: string }));
-      if (!response.ok) {
-        setError(body.error || "Unable to upload file.");
-        setUploadState("idle");
-        return;
-      }
-
-      // Persist the parsed result into Convex so all downstream consumers
-      // (viewer, progress page, schedule builder) have immediate access
-      // without needing the legacy bridge for reads.
-      try {
-        const client = getConvexClient();
-        if (client) {
-          await client.mutation(convexApi.evaluations.replaceCurrentProgramEvaluationFromUpload, {
-            payload: {
-              original_filename: body.filename ?? file.name,
-              parsed_data: body.parsed,
-              mime_type: file.type || "application/pdf",
-              file_size_bytes: file.size,
-            },
-          });
-        }
-      } catch (convexErr) {
-        // Non-fatal: upload succeeded, Convex sync is best-effort
-        console.error("Failed to sync upload result to Convex:", convexErr);
-      }
 
       mergePreferences({ hasProgramEvaluation: true, onboardingComplete: false });
       setUploadState("uploaded");
       if (onSuccess) {
         onSuccess();
       }
-    } catch {
-      setError("Unable to upload file.");
+    } catch (err) {
+      if (err instanceof Error && /401|403/.test(err.message)) {
+        signOut();
+        return;
+      }
+
+      setError(err instanceof Error ? err.message : "Unable to upload file.");
       setUploadState("idle");
     }
   };
@@ -132,21 +108,8 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
     if (!jwt || uploadState !== "uploaded") {
       return;
     }
-    try {
-      const response = await fetch(apiUrl("/api/program-evaluations"), {
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-        },
-      });
-      if (!response.ok) {
-        return;
-      }
-      const blob = await response.blob();
-      resetPreviewUrl();
-      const url = URL.createObjectURL(blob);
-      setPreviewUrl(url);
-    } catch {
-    }
+    resetPreviewUrl();
+    setPreviewUrl(buildLegacyProgramEvaluationPreviewUrl(jwt));
   };
 
 	const hasSelectedFile = !!file;
@@ -155,14 +118,14 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 	return (
 		<div className="space-y-8">
 			{/* Instructions Section */}
-			<div className="rounded-2xl bg-blue-50/50 p-6 sm:p-8 border border-blue-100">
+			<div className="rounded-2xl border border-primary/15 bg-primary/10 p-6 sm:p-8">
 				<div className="text-center mb-6">
 					<h3 className="text-lg sm:text-xl font-bold text-text-primary">Where is my Program Evaluation?</h3>
 					<a
 						href="https://studentcenter.chapman.edu"
 						target="_blank"
 						rel="noopener noreferrer"
-						className="text-base sm:text-lg text-blue-600 hover:text-blue-500 inline-flex items-center gap-2 mt-2 font-medium"
+						className="mt-2 inline-flex items-center gap-2 text-base font-medium text-primary hover:text-primary-emphasis sm:text-lg"
 					>
 						Chapman Student Center <FiExternalLink />
 					</a>
@@ -176,7 +139,7 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 							className="aspect-video w-full rounded-xl shadow-md border border-slate-200/60 object-cover transition-transform duration-300 group-hover:scale-[1.02]"
 						/>
 					</div>
-					<div className="text-blue-300 rotate-90 sm:rotate-0 flex-shrink-0">
+					<div className="text-primary/35 rotate-90 flex-shrink-0 sm:rotate-0">
 						<FiArrowRight className="w-12 h-12 sm:w-16 sm:h-16" />
 					</div>
 					<div className="relative group flex-1 w-full">
@@ -194,12 +157,12 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 				<div className="relative rounded-3xl overflow-hidden">
 					{/* Loading Overlay */}
 					{isUploading && (
-							<div role="status" aria-live="polite" className="absolute inset-0 z-10 bg-white/70 backdrop-blur-[2px] flex flex-col items-center justify-center">
-								<div className="bg-white px-8 py-7 sm:px-10 sm:py-8 rounded-2xl shadow-xl border border-slate-100 flex flex-col items-center text-center max-w-md sm:max-w-lg mx-auto">
+							<div role="status" aria-live="polite" className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-surface/75 backdrop-blur-[2px]">
+								<div className="mx-auto flex max-w-md flex-col items-center rounded-2xl border border-border-subtle bg-surface px-8 py-7 text-center shadow-xl sm:max-w-lg sm:px-10 sm:py-8">
 									<div className="relative w-16 h-16 sm:w-20 sm:h-20 mb-5" aria-hidden="true">
-										<div className="absolute inset-0 border-4 border-blue-100 rounded-full" />
-										<div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin" />
-										<FiUploadCloud className="absolute inset-0 m-auto text-blue-600 w-6 h-6 sm:w-7 sm:h-7" />
+										<div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+										<div className="absolute inset-0 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+										<FiUploadCloud className="absolute inset-0 m-auto h-6 w-6 text-primary sm:h-7 sm:w-7" />
 									</div>
 									<p className="text-lg sm:text-xl font-semibold text-text-primary">
 										Uploading your evaluation...
@@ -219,10 +182,10 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 					className={[
 						"flex flex-col items-center justify-center rounded-3xl border-3 border-dashed px-8 py-16 sm:px-12 sm:py-20 transition-all duration-200",
 						isUploading
-							? "border-slate-200 bg-slate-50 cursor-not-allowed opacity-60"
+							? "cursor-not-allowed border-border-subtle bg-surface-muted opacity-60"
 							: isDragging
-								? "border-blue-500 bg-blue-50/40 cursor-pointer"
-								: "border-blue-200 bg-white hover:border-blue-400 hover:bg-blue-50/30 cursor-pointer",
+								? "cursor-pointer border-primary bg-primary/10"
+								: "cursor-pointer border-primary/30 bg-surface-elevated hover:border-primary hover:bg-primary/10",
 					].join(" ")}
 					onDrop={isUploading ? undefined : handleDrop}
 					onDragOver={isUploading ? undefined : handleDragOver}
@@ -247,7 +210,7 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 						}
 					}}
 				>
-					<div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+					<div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/15 text-primary">
 						<FiUploadCloud className="text-4xl" />
 					</div>
 					<div className="text-xl sm:text-2xl font-semibold text-text-primary text-center">
@@ -257,7 +220,7 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 						Or click to browse files. Only one PDF is stored per account.
 					</div>
 					{hasSelectedFile ? (
-						<div className="mt-6 inline-flex items-center rounded-full bg-blue-50 px-6 py-3 text-base font-medium text-blue-700">
+						<div className="mt-6 inline-flex items-center rounded-full bg-primary/10 px-6 py-3 text-base font-medium text-primary">
 							<FiFileText className="mr-3 text-xl" />
 							<span className="truncate max-w-[300px]">{file.name}</span>
 						</div>
@@ -281,10 +244,10 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 						className={[
 							"inline-flex items-center justify-center gap-2 rounded-xl px-8 py-4 text-base sm:text-lg font-bold shadow-sm transition-all duration-200 w-full sm:w-auto",
 							isUploading
-								? "bg-blue-400 text-white cursor-wait"
+								? "cursor-wait bg-primary/55 text-primary-contrast"
 								: hasSelectedFile
-									? "bg-blue-600 text-white hover:bg-blue-500 hover:shadow-md transform active:scale-95"
-									: "bg-blue-200 text-blue-50 cursor-not-allowed",
+									? "bg-primary text-primary-contrast hover:bg-primary-emphasis hover:shadow-md transform active:scale-95"
+									: "cursor-not-allowed bg-primary/35 text-primary-contrast/80",
 						].join(" ")}
 					>
 						{isUploading && <FiLoader className="animate-spin text-xl" aria-hidden="true" />}
@@ -295,10 +258,10 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 						onClick={handleOpenPreview}
 						disabled={uploadState !== "uploaded"}
 						className={[
-							"inline-flex items-center justify-center rounded-xl px-6 py-4 text-base sm:text-lg font-medium shadow-sm ring-1 ring-slate-200 transition-colors duration-200 w-full sm:w-auto",
+							"inline-flex w-full items-center justify-center rounded-xl border border-border-subtle px-6 py-4 text-base font-medium shadow-sm transition-colors duration-200 sm:w-auto sm:text-lg",
 							uploadState === "uploaded"
-								? "bg-white text-text-secondary hover:text-text-primary hover:bg-slate-50"
-								: "bg-slate-100 text-slate-400 cursor-not-allowed",
+								? "bg-surface-elevated text-text-secondary hover:bg-surface-muted hover:text-text-primary"
+								: "cursor-not-allowed bg-surface-muted text-text-secondary/60",
 						].join(" ")}
 					>
 						<FiEye className="mr-3 text-xl" aria-hidden="true" />
@@ -306,12 +269,12 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 					</button>
 				</div>
 				{error ? (
-					<div role="alert" aria-live="assertive" className="mt-3 text-sm sm:text-base text-danger font-medium text-center bg-red-50 p-3 rounded-lg">
+					<div role="alert" aria-live="assertive" className="mt-3 rounded-lg bg-danger/10 p-3 text-center text-sm font-medium text-danger sm:text-base">
 						{error}
 					</div>
 				) : null}
 				{previewUrl ? (
-					<div className="mt-4 h-[420px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+					<div className="mt-4 h-[420px] overflow-hidden rounded-2xl border border-border-subtle bg-surface-muted">
 						<iframe
 							title="Program evaluation"
 							src={previewUrl}
@@ -323,4 +286,3 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 		</div>
 	);
 }
-

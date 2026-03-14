@@ -10,7 +10,7 @@ import { useMutation } from "convex/react";
 import { useAuth } from "../auth/AuthContext";
 import { convexApi } from "../lib/convex/api";
 import type { SchedulingPreferencesFormValues } from "../lib/convex/contracts";
-import { apiUrl } from "../lib/runtimeConfig";
+import { deleteCurrentProgramEvaluationBoundary, getConvexClient } from "../lib/convex";
 
 // Static onboarding questions with button options
 type OnboardingQuestion = {
@@ -112,33 +112,35 @@ export default function OnboardingChat() {
 
   const handleReupload = async () => {
     if (!jwt || loading) return;
+    const convexClient = getConvexClient();
+    if (!convexClient) {
+      setFinishError("Program evaluation changes require the Convex-backed app runtime.");
+      return;
+    }
     if (!window.confirm("This will delete your current transcript data and return you to the upload screen. Continue?")) {
       return;
     }
 
     setLoading(true);
     try {
-      const res = await fetch(apiUrl("/api/program-evaluations"), {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-        },
+      await deleteCurrentProgramEvaluationBoundary({
+        jwt,
+        clearProgramEvaluation: () =>
+          convexClient.mutation(convexApi.evaluations.clearCurrentProgramEvaluation, {}),
       });
-      if (res.ok) {
-        mergePreferences({ hasProgramEvaluation: false });
-        window.location.reload();
-      } else {
-        console.error("Reupload delete failed", await res.text());
-      }
+
+      mergePreferences({ hasProgramEvaluation: false, onboardingComplete: false });
+      window.location.reload();
     } catch (err) {
       console.error("Reupload delete failed", err);
+      setFinishError(err instanceof Error ? err.message : "Unable to reset your program evaluation.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleFinish = async (finalAnswers: OnboardingAnswers) => {
-    if (!jwt || loading) return;
+    if (loading) return;
     setLoading(true);
     setIsComplete(true);
 

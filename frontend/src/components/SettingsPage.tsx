@@ -3,6 +3,7 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import { FiLogOut, FiCheck, FiRefreshCw, FiSettings, FiAlertCircle } from "react-icons/fi";
 import { useMutation, useQuery } from "convex/react";
 import { useAuth } from "../auth/AuthContext";
+import ThemeModeToggle from './ThemeModeToggle';
 import AuthCard from "./AuthCard";
 import ProgramEvaluationViewer from "./ProgramEvaluationViewer";
 import { convexApi } from "../lib/convex/api";
@@ -85,7 +86,6 @@ const PREFERENCE_CONFIGS: PreferenceConfig[] = [
 export default function SettingsPage() {
   usePageTitle("Settings");
   const { signOut } = useAuth();
-  const convexEnabled = isConvexFeatureEnabled();
   const [preferences, setPreferences] = useState<SchedulingPreferences>({});
   const [loadState, setLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [savingField, setSavingField] = useState<string | null>(null);
@@ -94,51 +94,45 @@ export default function SettingsPage() {
 
   const convexSchedulingPrefs = useQuery(
     convexApi.profile.getCurrentSchedulingPreferences,
-    convexEnabled ? {} : "skip",
+    isConvexFeatureEnabled() ? {} : "skip",
   );
   const updateSchedulingPrefs = useMutation(convexApi.profile.updateCurrentSchedulingPreferences);
 
-  // Convex is now the source of truth for scheduling preferences.
+  // Sync Convex query results into local state when data arrives
   useEffect(() => {
-    if (!convexEnabled) {
-      setLoadState("error");
-      return;
+    if (convexSchedulingPrefs != null) {
+      setPreferences(convexSchedulingPrefs);
+      setLoadState("ready");
     }
-
-    if (convexSchedulingPrefs === undefined) {
-      setLoadState("loading");
-      return;
-    }
-
-    setPreferences(convexSchedulingPrefs ?? {});
-    setLoadState("ready");
-  }, [convexEnabled, convexSchedulingPrefs]);
+  }, [convexSchedulingPrefs]);
 
   const fetchPreferences = useCallback(async () => {
-    if (!convexEnabled) {
+    if (!isConvexFeatureEnabled()) {
       setLoadState("error");
       return;
     }
 
-    if (convexSchedulingPrefs === undefined) {
-      setLoadState("loading");
-      return;
-    }
-
+    setLoadState("loading");
     setPreferences(convexSchedulingPrefs ?? {});
     setLoadState("ready");
-  }, [convexEnabled, convexSchedulingPrefs]);
+  }, [convexSchedulingPrefs]);
 
   useEffect(() => {
-    void fetchPreferences();
+    fetchPreferences();
   }, [fetchPreferences]);
 
   const updatePreference = async (field: keyof SchedulingPreferences, value: string) => {
-    if (savingField || !convexEnabled) return;
+    if (savingField) return;
 
     setSavingField(field);
     setSuccessField(null);
     setSaveErrorField(null);
+
+    if (!isConvexFeatureEnabled()) {
+      setSaveErrorField(field);
+      setSavingField(null);
+      return;
+    }
 
     try {
       await updateSchedulingPrefs({ patch: { [field]: value } as SchedulingPreferencesFormValues });
@@ -163,11 +157,28 @@ export default function SettingsPage() {
         <div className="space-y-8">
           <ProgramEvaluationViewer />
 
+          <div className="rounded-2xl border border-border-subtle/70 bg-surface-elevated p-4 shadow-sm sm:p-5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <FiSettings className="text-lg" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-text-primary">Appearance</h3>
+                  <p className="text-sm text-text-secondary">Switch between the shared light and dark campus themes.</p>
+                </div>
+              </div>
+              <div className="w-full max-w-[11rem]">
+                <ThemeModeToggle />
+              </div>
+            </div>
+          </div>
+
           {/* Scheduling Preferences Section */}
-          <div className="pt-8 border-t border-slate-200/70">
+          <div className="pt-8 border-t border-border-subtle/70">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <FiSettings className="text-lg" />
                 </div>
                 <div>
@@ -180,7 +191,7 @@ export default function SettingsPage() {
                 onClick={fetchPreferences}
                 disabled={loadState === "loading"}
                 aria-busy={loadState === "loading" ? true : undefined}
-                className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-text-primary ring-1 ring-slate-200 shadow-sm transition-colors duration-150 hover:bg-slate-50 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-elevated px-3 py-2 text-xs font-medium text-text-primary shadow-sm transition-colors duration-150 hover:bg-surface-muted disabled:opacity-50"
               >
                 <FiRefreshCw className={`text-sm ${loadState === "loading" ? "animate-spin" : ""}`} aria-hidden="true" />
                 Refresh
@@ -188,19 +199,19 @@ export default function SettingsPage() {
             </div>
 
             {loadState === "loading" && !Object.keys(preferences).length ? (
-              <div role="status" aria-live="polite" className="rounded-2xl border border-slate-200/70 bg-slate-50 p-6 text-center text-sm text-text-secondary">
+              <div role="status" aria-live="polite" className="rounded-2xl border border-border-subtle/70 bg-surface-muted p-6 text-center text-sm text-text-secondary">
                 Loading preferences…
               </div>
             ) : loadState === "error" ? (
-              <div role="alert" aria-live="assertive" className="rounded-2xl border border-red-200/70 bg-red-50 p-6 text-center text-sm text-red-600">
-                Unable to load preferences. Please try again.
+              <div role="alert" aria-live="assertive" className="rounded-2xl border border-danger/25 bg-danger/10 p-6 text-center text-sm text-danger">
+                Scheduling preferences require the Convex-backed frontend runtime.
               </div>
             ) : (
               <div className="space-y-4">
                 {PREFERENCE_CONFIGS.map((config) => (
                   <div
                     key={config.id}
-                    className="rounded-2xl border border-slate-200/70 bg-white shadow-sm p-4 sm:p-5"
+                    className="rounded-2xl border border-border-subtle/70 bg-surface-elevated p-4 shadow-sm sm:p-5"
                   >
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div>
@@ -208,19 +219,19 @@ export default function SettingsPage() {
                         <div className="text-xs text-text-secondary">{config.description}</div>
                       </div>
                       {savingField === config.id && (
-                        <div role="status" aria-live="polite" className="flex items-center gap-1.5 text-xs text-blue-600">
+                        <div role="status" aria-live="polite" className="flex items-center gap-1.5 text-xs text-primary">
                           <FiRefreshCw className="text-sm animate-spin" aria-hidden="true" />
                           Saving…
                         </div>
                       )}
                       {successField === config.id && (
-                        <div role="status" aria-live="polite" className="flex items-center gap-1.5 text-xs text-green-600">
+                        <div role="status" aria-live="polite" className="flex items-center gap-1.5 text-xs text-success">
                           <FiCheck className="text-sm" aria-hidden="true" />
                           Saved
                         </div>
                       )}
                       {saveErrorField === config.id && (
-                        <div className="flex items-center gap-1.5 text-xs text-red-600" role="alert">
+                        <div className="flex items-center gap-1.5 text-xs text-danger" role="alert">
                           <FiAlertCircle className="text-sm" aria-hidden="true" />
                           Save failed
                         </div>
@@ -239,8 +250,8 @@ export default function SettingsPage() {
                             className={[
                               "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150",
                               isSelected
-                                ? "bg-blue-600 text-white shadow-sm"
-                                : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+                                ? "bg-primary text-primary-contrast shadow-sm"
+                                : "bg-surface-muted text-text-secondary hover:bg-surface hover:text-text-primary",
                               savingField !== null ? "opacity-60 cursor-not-allowed" : "",
                             ].join(" ")}
                           >
@@ -256,9 +267,9 @@ export default function SettingsPage() {
           </div>
 
           {/* Account Section */}
-          <div className="pt-8 border-t border-slate-200/70">
+          <div className="pt-8 border-t border-border-subtle/70">
             <h3 className="text-lg font-semibold text-text-primary mb-4">Account</h3>
-            <div className="flex items-center justify-between p-4 rounded-2xl border border-slate-200/70 bg-white shadow-sm">
+            <div className="flex items-center justify-between rounded-2xl border border-border-subtle/70 bg-surface-elevated p-4 shadow-sm">
               <div>
                 <div className="font-medium text-text-primary">Sign Out</div>
                 <div className="text-sm text-text-secondary">
@@ -268,7 +279,7 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={signOut}
-                className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-danger bg-red-50 hover:bg-red-100 transition-colors duration-150"
+                className="inline-flex items-center gap-2 rounded-xl bg-danger/10 px-4 py-2 text-sm font-semibold text-danger transition-colors duration-150 hover:bg-danger/15"
               >
                 <FiLogOut className="text-lg" aria-hidden="true" />
                 Sign Out

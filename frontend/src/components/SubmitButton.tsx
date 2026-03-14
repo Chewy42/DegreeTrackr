@@ -14,8 +14,8 @@ export default function SubmitButton({ loading, children, onClick }: SubmitButto
 			aria-busy={loading ? true : undefined}
 			onClick={onClick}
 			className={
-				'inline-flex w-full items-center justify-center rounded-xl bg-brand-600 text-white text-sm font-semibold py-3.5 px-4 shadow-md transition-all duration-200 ease-out ' +
-				'hover:bg-brand-700 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 disabled:bg-brand-300 disabled:shadow-none disabled:cursor-not-allowed'
+				'inline-flex w-full items-center justify-center rounded-xl bg-primary text-primary-contrast text-sm font-semibold py-3.5 px-4 shadow-md transition-all duration-200 ease-out ' +
+				'hover:bg-primary-emphasis hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 disabled:bg-primary/40 disabled:text-primary-contrast/80 disabled:shadow-none disabled:cursor-not-allowed'
 			}
 		>
 			{loading ? 'Please wait...' : children}

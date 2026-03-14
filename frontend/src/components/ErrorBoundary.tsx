@@ -86,7 +86,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       return (
         <div className="min-h-screen flex items-center justify-center bg-surface-muted text-text-primary px-4 py-6">
           <div className="w-full max-w-xl mx-auto">
-            <div role="alert" aria-live="assertive" className="relative bg-surface rounded-[2rem] shadow-card border border-slate-100/70">
+            <div role="alert" aria-live="assertive" className="relative bg-surface rounded-[2rem] shadow-card border border-border-subtle/70">
               <div className="px-6 pt-10 pb-8 sm:px-12 sm:pt-12 text-center">
                 <div className="mb-6" aria-hidden="true">
                   <svg
@@ -111,7 +111,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                 </p>
               </div>
 
-              <div className="h-px bg-slate-200/70 mx-6 sm:mx-12" />
+              <div className="h-px bg-border-subtle/70 mx-6 sm:mx-12" />
 
               <div className="px-6 py-8 sm:px-12 sm:py-12">
                 <div className="space-y-4">
@@ -119,8 +119,8 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                     type="button"
                     onClick={this.handleTryAgain}
                     className={
-                      'inline-flex w-full items-center justify-center rounded-xl bg-brand-600 text-white text-sm font-semibold py-3.5 px-4 shadow-md transition-all duration-200 ease-out ' +
-                      'hover:bg-brand-700 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0'
+                      'inline-flex w-full items-center justify-center rounded-xl bg-primary text-primary-contrast text-sm font-semibold py-3.5 px-4 shadow-md transition-all duration-200 ease-out ' +
+                      'hover:bg-primary-emphasis hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0'
                     }
                   >
                     Try Again
@@ -129,8 +129,8 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                     type="button"
                     onClick={this.handleGoBack}
                     className={
-                      'inline-flex w-full items-center justify-center rounded-xl bg-surface text-text-primary text-sm font-semibold py-3.5 px-4 border border-slate-200 shadow-sm transition-all duration-200 ease-out ' +
-                      'hover:bg-slate-50 hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0'
+                      'inline-flex w-full items-center justify-center rounded-xl bg-surface-elevated text-text-primary text-sm font-semibold py-3.5 px-4 border border-border-subtle shadow-sm transition-all duration-200 ease-out ' +
+                      'hover:bg-surface-muted hover:border-border-strong hover:shadow-md hover:-translate-y-0.5 active:translate-y-0'
                     }
                   >
                     Go Back
@@ -140,13 +140,13 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
               {process.env.NODE_ENV === 'development' && this.state.error && (
                 <>
-                  <div className="h-px bg-slate-200/70 mx-6 sm:mx-12" />
+                  <div className="h-px bg-border-subtle/70 mx-6 sm:mx-12" />
                   <div className="px-6 py-6 sm:px-12 sm:py-8">
                     <details className="text-left">
                       <summary className="text-sm font-medium text-text-secondary cursor-pointer hover:text-text-primary transition-colors">
                         Technical Details (Development Only)
                       </summary>
-                      <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200 overflow-auto max-h-48">
+                      <div className="mt-4 max-h-48 overflow-auto rounded-xl border border-border-subtle bg-surface-muted p-4">
                         <p className="text-sm font-mono text-danger break-all">
                           {this.state.error.toString()}
                         </p>

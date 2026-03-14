@@ -1,4 +1,7 @@
 /** @type {import('tailwindcss').Config} */
+
+const withOpacity = (variable) => `rgb(var(${variable}) / <alpha-value>)`;
+
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
@@ -17,15 +20,37 @@ export default {
           800: '#1e40af',
           900: '#1e3a8a',
         },
+        canvas: withOpacity('--color-canvas'),
         surface: {
-          DEFAULT: '#ffffff',
-          muted: '#f8fafc',
+          DEFAULT: withOpacity('--color-surface'),
+          muted: withOpacity('--color-surface-muted'),
+          elevated: withOpacity('--color-surface-elevated'),
         },
         text: {
-          primary: '#1e293b',
-          secondary: '#64748b',
+          primary: withOpacity('--color-text-primary'),
+          secondary: withOpacity('--color-text-secondary'),
         },
-        danger: '#ef4444',
+        shell: {
+          DEFAULT: withOpacity('--color-shell'),
+          muted: withOpacity('--color-shell-muted'),
+          contrast: withOpacity('--color-shell-contrast'),
+        },
+        primary: {
+          DEFAULT: withOpacity('--color-primary'),
+          emphasis: withOpacity('--color-primary-emphasis'),
+          contrast: withOpacity('--color-primary-contrast'),
+        },
+        accent: {
+          DEFAULT: withOpacity('--color-accent'),
+          emphasis: withOpacity('--color-accent-emphasis'),
+        },
+        border: {
+          subtle: withOpacity('--color-border-subtle'),
+          strong: withOpacity('--color-border-strong'),
+        },
+        danger: withOpacity('--color-danger'),
+        success: withOpacity('--color-success'),
+        focus: withOpacity('--color-focus'),
         // Neutral slate-like text palette for other uses
         ink: {
           900: '#0f172a',
@@ -39,7 +64,7 @@ export default {
       },
       boxShadow: {
         // Subtle neutral depth for cards
-        card: '0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 8px rgba(15, 23, 42, 0.06)',
+        card: '0 20px 45px rgb(var(--shadow-color) / 0.12), 0 8px 18px rgb(var(--shadow-color) / 0.08)',
       },
       container: {
         center: true,

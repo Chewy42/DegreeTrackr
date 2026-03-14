@@ -22,6 +22,12 @@ DegreeTrackr ships as a Vite frontend for **Cloudflare Pages** with **Clerk** an
 
 - `VITE_API_BASE_URL`
 
+### Optional / defaults provided
+
+- `VITE_ROUTER_BASENAME` — router base path; defaults to `/`. Set only when the app is served from a sub-path.
+- `VITE_SENTRY_DSN` — Sentry error monitoring DSN. If unset, Sentry is disabled.
+- `VITE_SENTRY_ADMIN_ROUTES` — comma-separated list of routes treated as admin for Sentry sampling; defaults to `/admin`.
+
 As of 2026-03-12, the remaining bridge-dependent flows are:
 - Clerk session exchange (`/api/auth/clerk/session`)
 - backend health check (`/api/health`)

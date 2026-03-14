@@ -250,4 +250,83 @@ describe('chatHelpers', () => {
     })
     expect(result.session.legacySessionId).toBe('legacy-1')
   })
+
+  // ── clearExploreSessionsConvex ────────────────────────────────────────
+
+  it('clearExploreSessionsConvex throws when Convex client is unavailable', async () => {
+    await expect(clearExploreSessionsConvex()).rejects.toThrow('Convex client is unavailable.')
+  })
+
+  // ── Session persistence ───────────────────────────────────────────────
+
+  it('session id from createChatSession can be passed to getSessionMessagesConvex', async () => {
+    enableConvex()
+    mockMutation.mockResolvedValue('persisted-session-id')
+    mockQuery.mockResolvedValue([])
+
+    const sessionId = await createChatSession('explore', 'Persistence Test')
+    const messages = await getSessionMessagesConvex(sessionId)
+
+    expect(sessionId).toBe('persisted-session-id')
+    expect(mockQuery.mock.calls[0]?.[1]).toEqual({ sessionId: 'persisted-session-id' })
+    expect(messages).toEqual([])
+  })
+
+  // ── Message ordering ──────────────────────────────────────────────────
+
+  it('getSessionMessagesConvex returns messages in chronological order from Convex', async () => {
+    enableConvex()
+    const ordered = [
+      { _id: 'm1', role: 'user' as const, content: 'First', createdAt: 100 },
+      { _id: 'm2', role: 'assistant' as const, content: 'Second', createdAt: 200 },
+      { _id: 'm3', role: 'user' as const, content: 'Third', createdAt: 300 },
+    ]
+    mockQuery.mockResolvedValue(ordered)
+
+    const result = await getSessionMessagesConvex('sess-ordered')
+
+    expect(result).toHaveLength(3)
+    expect(result[0]!._id).toBe('m1')
+    expect(result[1]!._id).toBe('m2')
+    expect(result[2]!._id).toBe('m3')
+    // Verify chronological ordering is preserved end-to-end
+    expect(result[0]!.createdAt).toBeLessThan(result[1]!.createdAt)
+    expect(result[1]!.createdAt).toBeLessThan(result[2]!.createdAt)
+  })
+
+  // ── Large message body ────────────────────────────────────────────────
+
+  it('addChatMessage passes a 500-char content body to the mutation without truncation', async () => {
+    enableConvex()
+    mockMutation.mockResolvedValue('msg-large')
+
+    const largeContent = 'A'.repeat(500)
+    const result = await addChatMessage('s1', 'user', largeContent)
+
+    expect(mockMutation.mock.calls[0]?.[1]).toEqual({
+      sessionId: 's1',
+      sender: 'user',
+      content: largeContent,
+    })
+    expect((mockMutation.mock.calls[0]?.[1] as { content: string }).content).toHaveLength(500)
+    expect(result).toBe('msg-large')
+  })
+
+  // ── Concurrent sends ──────────────────────────────────────────────────
+
+  it('two concurrent addChatMessage calls both resolve without dropping either', async () => {
+    enableConvex()
+    mockMutation
+      .mockResolvedValueOnce('msg-concurrent-1')
+      .mockResolvedValueOnce('msg-concurrent-2')
+
+    const [r1, r2] = await Promise.all([
+      addChatMessage('sess', 'user', 'First concurrent message'),
+      addChatMessage('sess', 'user', 'Second concurrent message'),
+    ])
+
+    expect(mockMutation).toHaveBeenCalledTimes(2)
+    expect(r1).toBe('msg-concurrent-1')
+    expect(r2).toBe('msg-concurrent-2')
+  })
 })

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import App from './App'
+import { AppThemeProvider } from './theme/AppThemeProvider'
 
 const mockUseAuth = vi.fn()
 
@@ -37,9 +38,12 @@ const baseContext = {
 
 function renderApp(path = '/') {
   return renderToStaticMarkup(
-    <MemoryRouter initialEntries={[path]}>
-      <App />
-    </MemoryRouter>
+    // AppThemeProvider is required because Sidebar renders ThemeModeToggle which calls useAppTheme.
+    <AppThemeProvider>
+      <MemoryRouter initialEntries={[path]}>
+        <App />
+      </MemoryRouter>
+    </AppThemeProvider>
   )
 }
 
@@ -69,19 +73,6 @@ describe('App auth entry point', () => {
     expect(html).toContain('create your Clerk-backed account and continue')
   })
 
-  it('renders a setup notice when the legacy bridge is still required', () => {
-    mockUseAuth.mockReturnValue({
-      ...baseContext,
-      sessionState: 'legacy_bridge_required',
-    })
-
-    const html = renderApp()
-
-    expect(html).toContain('Legacy bridge setup required')
-    expect(html).toContain('VITE_API_BASE_URL')
-    expect(html).toContain('program evaluation')
-  })
-
   it('renders the Clerk callback route', () => {
     mockUseAuth.mockReturnValue(baseContext)
 
@@ -92,7 +83,7 @@ describe('App auth entry point', () => {
     expect(html).toContain('clerk-captcha')
   })
 
-  it('waits for preferences before showing first-run authenticated surfaces', () => {
+  it('shows a loading screen while preferences are loading for authenticated users', () => {
     mockUseAuth.mockReturnValue({
       ...baseContext,
       sessionState: 'authenticated',
@@ -106,7 +97,20 @@ describe('App auth entry point', () => {
     expect(html).not.toContain('Upload your program evaluation')
   })
 
-  it('does not render the old authenticated placeholder on unknown routes', () => {
+  it('shows the program evaluation upload for authenticated users with no program evaluation on file', () => {
+    mockUseAuth.mockReturnValue({
+      ...baseContext,
+      sessionState: 'authenticated',
+      preferencesReady: true,
+      preferences: {},
+    })
+
+    const html = renderApp('/')
+
+    expect(html).toContain('Upload your program evaluation')
+  })
+
+  it('does not render stale placeholder text on unknown routes', () => {
     mockUseAuth.mockReturnValue({
       ...baseContext,
       sessionState: 'authenticated',
@@ -118,5 +122,7 @@ describe('App auth entry point', () => {
 
     expect(html).not.toContain('This placeholder view confirms authentication flow is working.')
     expect(html).not.toContain('Welcome to DegreeTrackr')
+    // Unknown route should show a clean "not found" message instead
+    expect(html).toContain('Page not found.')
   })
 })

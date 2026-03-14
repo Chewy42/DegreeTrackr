@@ -16,6 +16,7 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [sizeWarning, setSizeWarning] = useState<string | null>(null);
 
   const resetPreviewUrl = () => {
     if (previewUrl?.startsWith("blob:")) {
@@ -36,6 +37,14 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
       setFile(null);
       return;
     }
+    const MB = 1024 * 1024;
+    setSizeWarning(
+      candidate.size > 20 * MB
+        ? `File is ${(candidate.size / MB).toFixed(1)} MB — very large PDFs may fail to upload. Try compressing the PDF first.`
+        : candidate.size > 10 * MB
+          ? `Large file (${(candidate.size / MB).toFixed(1)} MB) — upload may take a moment.`
+          : null,
+    );
     setError(null);
     setFile(candidate);
     setUploadState("idle");
@@ -268,6 +277,11 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
 						Open program evaluation
 					</button>
 				</div>
+				{sizeWarning ? (
+					<div role="status" aria-live="polite" className="mt-3 rounded-lg bg-warning/10 p-3 text-center text-sm font-medium text-warning sm:text-base">
+						{sizeWarning}
+					</div>
+				) : null}
 				{error ? (
 					<div role="alert" aria-live="assertive" className="mt-3 rounded-lg bg-danger/10 p-3 text-center text-sm font-medium text-danger sm:text-base">
 						{error}

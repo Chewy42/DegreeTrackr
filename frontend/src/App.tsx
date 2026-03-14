@@ -24,6 +24,7 @@ export default function App() {
     loading,
     error,
     preferences,
+    preferencesReady,
     setMode,
     handleGoogleAuth,
     pendingEmail,
@@ -66,6 +67,18 @@ export default function App() {
   }
 
   if (sessionState === "authenticated") {
+    // Gate first-run surfaces on preferences being ready — prevents a flash of the
+    // upload/onboarding screen for returning users whose Convex prefs are still loading.
+    if (!preferencesReady) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-surface-muted text-text-primary px-4">
+          <div className="text-sm font-medium tracking-[0.025em] animate-pulse">
+            Loading your DegreeTrackr setup...
+          </div>
+        </div>
+      );
+    }
+
     if (!preferences.hasProgramEvaluation) {
       return (
         <div className="flex h-screen w-screen overflow-hidden bg-surface-muted text-text-primary">
@@ -134,25 +147,13 @@ export default function App() {
       );
     }
 
-    let title = "Welcome to DegreeTrackr";
-    let subtitle = "You are signed in. Next: connect session state and onboarding.";
-    let body: React.ReactNode = (
-      <div className="text-sm text-text-secondary text-center py-1">
-        This placeholder view confirms authentication flow is working.
-      </div>
-    );
-
+    // Unknown authenticated route — show a minimal "not found" message.
     return (
       <div className="flex h-screen w-screen overflow-hidden bg-surface-muted text-text-primary">
         <Sidebar />
         <main className="flex-1 h-full overflow-y-auto p-4 min-w-0">
           <div className="min-h-full flex items-center justify-center">
-            <AuthCard
-              title={title}
-              subtitle={subtitle}
-            >
-              {body}
-            </AuthCard>
+            <p className="text-sm text-text-secondary">Page not found.</p>
           </div>
         </main>
       </div>

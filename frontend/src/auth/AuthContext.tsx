@@ -5,6 +5,7 @@ import { buildClerkRedirectUrls, extractClerkErrorMessage } from './clerkAuth'
 import { convexApi } from '../lib/convex/api'
 import { isConvexFeatureEnabled } from '../lib/convex/config'
 
+
 export type AuthMode = 'sign_in' | 'sign_up'
 
 export type AuthState = {
@@ -29,6 +30,9 @@ export type AuthContextValue = {
   loading: boolean
   error: string | null
   preferences: UserPreferences
+  /** True once preferences are confirmed loaded (from Convex or localStorage). Use to
+   *  gate first-run surfaces so returning users don't flash the onboarding/upload screen. */
+  preferencesReady: boolean
   jwt: string | null
   pendingEmail: string | null
   setMode: (mode: AuthMode) => void
@@ -265,6 +269,11 @@ export function AuthProvider({ children }: Props) {
     throw new Error('Email confirmation is no longer handled by this touched Clerk flow.')
   }
 
+  // preferencesReady: true once Convex has responded (even with null/empty) or Convex is
+  // disabled and we've fallen back to localStorage. Prevents returning users from seeing
+  // a flash of the upload/onboarding screen while Convex is still fetching their prefs.
+  const preferencesReady = !isConvexFeatureEnabled() || convexUserPrefs !== undefined
+
   const value: AuthContextValue = useMemo(
     () => ({
       sessionState,
@@ -273,6 +282,7 @@ export function AuthProvider({ children }: Props) {
       loading,
       error,
       preferences,
+      preferencesReady,
       jwt,
       pendingEmail,
       setMode,
@@ -285,7 +295,7 @@ export function AuthProvider({ children }: Props) {
       mergePreferences,
       retryBackendConnection,
     }),
-    [sessionState, mode, auth, loading, error, preferences, jwt, pendingEmail, handleGoogleAuth, mergePreferences, signOut, refreshPreferences, retryBackendConnection]
+    [sessionState, mode, auth, loading, error, preferences, preferencesReady, jwt, pendingEmail, handleGoogleAuth, mergePreferences, signOut, refreshPreferences, retryBackendConnection]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

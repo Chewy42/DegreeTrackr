@@ -107,10 +107,16 @@ export default function ProgramEvaluationViewer() {
     setPreviewUrl(directPdfUrl);
   }, [directPdfUrl, revokePreview]);
 
+  // Fetch evaluation on mount and whenever jwt/preferences change.
   useEffect(() => {
     fetchParsed();
-    return () => revokePreview();
-  }, [fetchParsed, revokePreview]);
+  }, [fetchParsed]);
+
+  // Cleanup preview URL on unmount or when revokePreview identity changes.
+  // Kept separate so opening/closing the PDF modal never re-triggers fetchParsed.
+  useEffect(() => {
+    return revokePreview;
+  }, [revokePreview]);
 
   const fileLabel = useMemo(() => {
     if (!parsed) return "No file on record";

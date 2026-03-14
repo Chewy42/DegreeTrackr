@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FiCheckCircle,
   FiCpu,
@@ -11,6 +11,8 @@ import { useAuth } from "../auth/AuthContext";
 import { convexApi } from "../lib/convex/api";
 import type { SchedulingPreferencesFormValues } from "../lib/convex/contracts";
 import { deleteCurrentProgramEvaluationBoundary, getConvexClient } from "../lib/convex";
+
+const ONBOARDING_STORAGE_KEY = "degreetrackr.onboarding_progress";
 
 // Static onboarding questions with button options
 type OnboardingQuestion = {
@@ -72,11 +74,42 @@ type OnboardingAnswers = Record<string, string>;
 export default function OnboardingChat() {
   const { jwt, mergePreferences } = useAuth();
   const completeOnboarding = useMutation(convexApi.profile.completeCurrentOnboarding);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<OnboardingAnswers>({});
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem(ONBOARDING_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as { index?: unknown; answers?: unknown };
+        const idx = typeof parsed.index === "number" ? parsed.index : 0;
+        return idx < ONBOARDING_QUESTIONS.length ? idx : 0;
+      }
+    } catch { /* ignore */ }
+    return 0;
+  });
+  const [answers, setAnswers] = useState<OnboardingAnswers>(() => {
+    try {
+      const saved = sessionStorage.getItem(ONBOARDING_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as { index?: unknown; answers?: unknown };
+        if (parsed.answers != null && typeof parsed.answers === "object") {
+          return parsed.answers as OnboardingAnswers;
+        }
+      }
+    } catch { /* ignore */ }
+    return {};
+  });
   const [loading, setLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);
+
+  // Persist in-progress answers to sessionStorage so the user can resume if they leave mid-flow
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        ONBOARDING_STORAGE_KEY,
+        JSON.stringify({ index: currentQuestionIndex, answers }),
+      );
+    } catch { /* ignore */ }
+  }, [currentQuestionIndex, answers]);
 
   const currentQuestion = ONBOARDING_QUESTIONS[currentQuestionIndex];
   const progressPercent = Math.round(((currentQuestionIndex) / ONBOARDING_QUESTIONS.length) * 100);
@@ -105,6 +138,7 @@ export default function OnboardingChat() {
     if (!window.confirm("Start over? This will reset your answers.")) {
       return;
     }
+    try { sessionStorage.removeItem(ONBOARDING_STORAGE_KEY); } catch { /* ignore */ }
     setCurrentQuestionIndex(0);
     setAnswers({});
     setIsComplete(false);
@@ -142,16 +176,17 @@ export default function OnboardingChat() {
   const handleFinish = async (finalAnswers: OnboardingAnswers) => {
     if (loading) return;
     setLoading(true);
-    setIsComplete(true);
 
     try {
       await completeOnboarding({ answers: finalAnswers as SchedulingPreferencesFormValues });
       mergePreferences({ onboardingComplete: true });
+      try { sessionStorage.removeItem(ONBOARDING_STORAGE_KEY); } catch { /* ignore */ }
+      setIsComplete(true);
     } catch (err) {
       console.error("Finish failed", err);
-      setIsComplete(false);
-      setLoading(false);
       setFinishError("Something went wrong saving your preferences. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 

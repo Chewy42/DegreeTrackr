@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { FiLogOut, FiCheck, FiRefreshCw, FiSettings, FiAlertCircle } from "react-icons/fi";
 import { useMutation, useQuery } from "convex/react";
@@ -87,7 +87,7 @@ export default function SettingsPage() {
   usePageTitle("Settings");
   const { signOut } = useAuth();
   const [preferences, setPreferences] = useState<SchedulingPreferences>({});
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [savingField, setSavingField] = useState<string | null>(null);
   const [successField, setSuccessField] = useState<string | null>(null);
   const [saveErrorField, setSaveErrorField] = useState<string | null>(null);
@@ -98,28 +98,29 @@ export default function SettingsPage() {
   );
   const updateSchedulingPrefs = useMutation(convexApi.profile.updateCurrentSchedulingPreferences);
 
-  // Sync Convex query results into local state when data arrives
+  // Sync Convex query results into local state; handle the Convex-disabled error case
   useEffect(() => {
+    if (!isConvexFeatureEnabled()) {
+      setLoadState("error");
+      return;
+    }
     if (convexSchedulingPrefs != null) {
       setPreferences(convexSchedulingPrefs);
       setLoadState("ready");
     }
   }, [convexSchedulingPrefs]);
 
-  const fetchPreferences = useCallback(async () => {
+  // Re-read from the already-loaded Convex cache (Convex queries are reactive and self-update)
+  function handleRefresh() {
     if (!isConvexFeatureEnabled()) {
       setLoadState("error");
       return;
     }
-
-    setLoadState("loading");
-    setPreferences(convexSchedulingPrefs ?? {});
-    setLoadState("ready");
-  }, [convexSchedulingPrefs]);
-
-  useEffect(() => {
-    fetchPreferences();
-  }, [fetchPreferences]);
+    if (convexSchedulingPrefs != null) {
+      setPreferences(convexSchedulingPrefs);
+      setLoadState("ready");
+    }
+  }
 
   const updatePreference = async (field: keyof SchedulingPreferences, value: string) => {
     if (savingField) return;
@@ -188,7 +189,7 @@ export default function SettingsPage() {
               </div>
               <button
                 type="button"
-                onClick={fetchPreferences}
+                onClick={handleRefresh}
                 disabled={loadState === "loading"}
                 aria-busy={loadState === "loading" ? true : undefined}
                 className="inline-flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-elevated px-3 py-2 text-xs font-medium text-text-primary shadow-sm transition-colors duration-150 hover:bg-surface-muted disabled:opacity-50"

@@ -299,7 +299,32 @@ describe('WeeklyCalendar', () => {
 
   // ── React.memo re-render prevention ─────────────────────────────────────
 
-  it('does not re-render when unrelated parent state changes (React.memo)', async () => {
+  /** Build a list of N distinct scheduled classes for perf tests. */
+  function makeManyClasses(n: number): ScheduledClass[] {
+    const days = ['M', 'Tu', 'W', 'Th', 'F'] as const
+    return Array.from({ length: n }, (_, i) => {
+      const day = days[i % days.length]!
+      const startMinute = 480 + (i % 12) * 50 // stagger across hours
+      return {
+        ...makeScheduledClass(`PERF-${i}-01`, `PERF ${i}`),
+        occurrenceData: {
+          starts: 0,
+          ends: 0,
+          daysOccurring: {
+            M: day === 'M' ? [{ startTime: startMinute, endTime: startMinute + 50 }] : [],
+            Tu: day === 'Tu' ? [{ startTime: startMinute, endTime: startMinute + 50 }] : [],
+            W: day === 'W' ? [{ startTime: startMinute, endTime: startMinute + 50 }] : [],
+            Th: day === 'Th' ? [{ startTime: startMinute, endTime: startMinute + 50 }] : [],
+            F: day === 'F' ? [{ startTime: startMinute, endTime: startMinute + 50 }] : [],
+            Sa: [],
+            Su: [],
+          },
+        },
+      }
+    })
+  }
+
+  it('does not re-render with 20+ classes when unrelated parent state changes (React.memo)', async () => {
     let calendarRenderCount = 0
 
     function RenderSpy(props: React.ComponentPropsWithoutRef<typeof WeeklyCalendarUnmemoized>) {
@@ -310,7 +335,7 @@ describe('WeeklyCalendar', () => {
     const MemoSpy = React.memo(RenderSpy)
 
     const onRemoveClass = vi.fn()
-    const stableClasses: ScheduledClass[] = [CLASS_A]
+    const stableClasses = makeManyClasses(24)
     const stableConflicts: Record<string, string> = {}
 
     function Parent() {
@@ -332,10 +357,56 @@ describe('WeeklyCalendar', () => {
     await act(async () => { root.render(<Parent />) })
     const initialCount = calendarRenderCount
 
-    // Trigger unrelated parent state change
+    // Trigger 3 unrelated parent state changes — none should propagate
     const bumpBtn = container.querySelector<HTMLButtonElement>('[data-testid="bump"]')!
+    await act(async () => { bumpBtn.click() })
+    await act(async () => { bumpBtn.click() })
     await act(async () => { bumpBtn.click() })
 
     expect(calendarRenderCount).toBe(initialCount)
+  })
+
+  it('re-renders when a new array reference with same values is passed (expected shallow compare)', async () => {
+    let calendarRenderCount = 0
+
+    function RenderSpy(props: React.ComponentPropsWithoutRef<typeof WeeklyCalendarUnmemoized>) {
+      calendarRenderCount++
+      return <WeeklyCalendarUnmemoized {...props} />
+    }
+
+    const MemoSpy = React.memo(RenderSpy)
+    const onRemoveClass = vi.fn()
+
+    function Parent() {
+      const [tick, setTick] = React.useState(0)
+      // Each render creates a new array reference even though contents are identical
+      const classes = makeManyClasses(20)
+      return (
+        <>
+          <button data-testid="tick" onClick={() => setTick(n => n + 1)}>
+            {tick}
+          </button>
+          <MemoSpy
+            classes={classes}
+            onRemoveClass={onRemoveClass}
+            conflicts={{}}
+          />
+        </>
+      )
+    }
+
+    await act(async () => { root.render(<Parent />) })
+    const afterInitial = calendarRenderCount
+
+    const tickBtn = container.querySelector<HTMLButtonElement>('[data-testid="tick"]')!
+    await act(async () => { tickBtn.click() })
+
+    // New array reference → React.memo shallow compare fails → re-render expected
+    expect(calendarRenderCount).toBeGreaterThan(afterInitial)
+  })
+
+  it('exported default is wrapped with React.memo', async () => {
+    // React.memo wraps the component in a special object with $$typeof = Symbol.for('react.memo')
+    expect((WeeklyCalendar as any).$$typeof).toBe(Symbol.for('react.memo'))
   })
 })

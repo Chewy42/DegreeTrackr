@@ -160,4 +160,44 @@ describe('ExploreChat', () => {
 
     expect(container.textContent).toContain('Start a new exploration')
   })
+
+  it('calls onSessionChange(null) when New Chat is clicked', async () => {
+    const onSessionChange = vi.fn()
+    await render('session-existing', onSessionChange)
+
+    const newChatBtn = getBtn('New Chat')!
+    await act(async () => { newChatBtn.click() })
+
+    expect(onSessionChange).toHaveBeenCalledWith(null)
+  })
+
+  it('calls onSessionChange with the new session id after the first message is sent', async () => {
+    const onSessionChange = vi.fn()
+    await render(null, onSessionChange)
+
+    const suggestionBtn = getBtn('What can I do with my major?')!
+    await act(async () => { suggestionBtn.click() })
+
+    expect(onSessionChange).toHaveBeenCalledWith('session-1')
+  })
+
+  it('does not call onSessionChange again when a follow-up message uses the same session', async () => {
+    const onSessionChange = vi.fn()
+    // Render with the session id that matches SEND_RESULT.session.id.
+    // Suggestions are cleared when a sessionId is set, so use the input field directly.
+    await render('session-1', onSessionChange)
+
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Message to AI advisor"]')!
+    const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+    await act(async () => {
+      nativeValueSetter?.call(input, 'follow-up question')
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+
+    const sendBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')!
+    await act(async () => { sendBtn.click() })
+
+    // response.session.id === currentSessionId → onSessionChange must not fire
+    expect(onSessionChange).not.toHaveBeenCalled()
+  })
 })

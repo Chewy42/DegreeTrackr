@@ -60,7 +60,7 @@ export default function Sidebar() {
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}
-          className="ml-auto flex h-9 w-9 items-center justify-center rounded-[15px] bg-white/15 text-shell-contrast shadow-sm transition-all duration-300 ease-linear hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-shell"
+          className="ml-auto flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-[15px] bg-white/15 text-shell-contrast shadow-sm transition-all duration-300 ease-linear hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-shell"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-expanded={!collapsed}
         >

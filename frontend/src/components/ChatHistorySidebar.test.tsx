@@ -159,4 +159,90 @@ describe('ChatHistorySidebar', () => {
       expect(item.tabIndex).not.toBe(-1)
     }
   })
+
+  // --- Optimistic / immediate UI update ---
+
+  it('removes the deleted session from the list immediately without a page reload', async () => {
+    await render()
+    expect(container.querySelectorAll('ul li').length).toBe(2)
+    const deleteBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Delete session"]')!
+    await act(async () => { deleteBtn.click() })
+    expect(container.querySelectorAll('ul li').length).toBe(1)
+    expect(container.textContent).not.toContain('What can I do with CS?')
+  })
+
+  it('calls onSelectSession(null) when the currently-active session is deleted', async () => {
+    const onSelectSession = vi.fn()
+    await render({ currentSessionId: 'session-abc', onSelectSession })
+    const deleteBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Delete session"]')!
+    await act(async () => { deleteBtn.click() })
+    expect(onSelectSession).toHaveBeenCalledWith(null)
+  })
+
+  it('does not call onSelectSession when a non-active session is deleted', async () => {
+    const onSelectSession = vi.fn()
+    await render({ currentSessionId: 'session-def', onSelectSession })
+    // First delete button belongs to session-abc (the non-active one)
+    const deleteBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Delete session"]')!
+    await act(async () => { deleteBtn.click() })
+    expect(onSelectSession).not.toHaveBeenCalled()
+  })
+
+  it('shows an error alert and refreshes the list if deletion fails', async () => {
+    // First call (render) resolves; second call (refresh after failure) also rejects so the
+    // error alert stays visible when the act settles.
+    mocks.listSessions
+      .mockResolvedValueOnce(SESSIONS)
+      .mockRejectedValueOnce(new Error('Refresh also failed'))
+    mocks.deleteSession.mockRejectedValueOnce(new Error('Server error'))
+    await render()
+    const deleteBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Delete session"]')!
+    await act(async () => { deleteBtn.click() })
+    expect(container.querySelector('[role="alert"]')).not.toBeNull()
+    expect(mocks.listSessions).toHaveBeenCalledTimes(2)
+  })
+
+  // --- Clear-all flow ---
+
+  it('does not render the clear-all button when there are no sessions', async () => {
+    mocks.listSessions.mockResolvedValue([])
+    await render()
+    const clearBtn = container.querySelector<HTMLButtonElement>('button[title="Clear all Explore chats"]')
+    expect(clearBtn).toBeNull()
+  })
+
+  it('calls clearExploreSessionsConvex when the clear-all confirm is accepted', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(true)
+    await render()
+    const clearBtn = container.querySelector<HTMLButtonElement>('button[title="Clear all Explore chats"]')!
+    await act(async () => { clearBtn.click() })
+    expect(mocks.clearSessions).toHaveBeenCalledOnce()
+  })
+
+  it('does not call clearExploreSessionsConvex when the clear-all confirm is dismissed', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(false)
+    await render()
+    const clearBtn = container.querySelector<HTMLButtonElement>('button[title="Clear all Explore chats"]')!
+    await act(async () => { clearBtn.click() })
+    expect(mocks.clearSessions).not.toHaveBeenCalled()
+  })
+
+  it('removes all sessions from the list after clear-all is confirmed (no current session)', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(true)
+    await render()
+    const clearBtn = container.querySelector<HTMLButtonElement>('button[title="Clear all Explore chats"]')!
+    await act(async () => { clearBtn.click() })
+    expect(container.querySelectorAll('ul li').length).toBe(0)
+    expect(container.textContent).toContain('No saved explore chats yet')
+  })
+
+  it('keeps the active session in the list after clear-all when currentSessionId is set', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(true)
+    await render({ currentSessionId: 'session-abc' })
+    const clearBtn = container.querySelector<HTMLButtonElement>('button[title="Clear all Explore chats"]')!
+    await act(async () => { clearBtn.click() })
+    expect(container.querySelectorAll('ul li').length).toBe(1)
+    expect(container.textContent).toContain('What can I do with CS?')
+    expect(container.textContent).not.toContain('Career paths in biology')
+  })
 })

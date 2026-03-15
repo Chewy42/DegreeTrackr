@@ -351,7 +351,7 @@ export default function OnboardingChat() {
             type="button"
             onClick={handleReset}
             disabled={loading || currentQuestionIndex === 0}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-500 hover:text-red-600 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 min-h-[44px] text-sm font-medium text-slate-500 hover:text-red-600 transition-colors disabled:opacity-50"
           >
             <FiRefreshCw className={`text-lg ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
             Start Over
@@ -361,7 +361,7 @@ export default function OnboardingChat() {
             type="button"
             onClick={handleReupload}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 min-h-[44px] text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors disabled:opacity-50"
           >
             <FiUploadCloud className="text-lg" aria-hidden="true" />
             New Evaluation

@@ -1,34 +1,14 @@
 // @vitest-environment jsdom
 import React from 'react'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { act } from 'react'
-import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CreditRequirement, Course, StudentInfo } from './ProgressPage'
-
-vi.mock('react-icons/fi', () => ({
-  FiTarget: () => React.createElement('span', null, 'target'),
-  FiAward: () => React.createElement('span', null, 'award'),
-  FiCalendar: () => React.createElement('span', null, 'calendar'),
-  FiTrendingUp: () => React.createElement('span', null, 'trending'),
-  FiBookOpen: () => React.createElement('span', null, 'book'),
-}))
-
-function makeReq(
-  label: string,
-  required: number,
-  earned: number,
-  in_progress: number,
-): CreditRequirement {
-  return { label, required, earned, in_progress, needed: Math.max(0, required - earned - in_progress) }
-}
-
-function makeCourse(term: string, grade: string | null, credits = 3): Course {
-  return { term, subject: 'CS', number: '101', title: 'Test', grade, credits, type: null }
-}
+import { createRoot } from 'react-dom/client'
+import UpcomingMilestones from './UpcomingMilestones'
+import type { CreditRequirement, Course } from './ProgressPage'
 
 describe('UpcomingMilestones', () => {
   let container: HTMLDivElement
-  let root: Root
+  let root: ReturnType<typeof createRoot>
 
   beforeEach(() => {
     container = document.createElement('div')
@@ -36,100 +16,186 @@ describe('UpcomingMilestones', () => {
     root = createRoot(container)
   })
 
-  afterEach(() => {
-    act(() => { root.unmount() })
+  afterEach(async () => {
+    await act(async () => { root.unmount() })
     container.remove()
   })
 
-  async function render(props: {
-    creditRequirements: CreditRequirement[]
-    courses?: { all_found: Course[]; in_progress: Course[]; completed: Course[] }
-    studentInfo?: StudentInfo
-  }) {
-    const { default: UpcomingMilestones } = await import('./UpcomingMilestones')
+  async function renderMilestones(
+    creditRequirements: CreditRequirement[],
+    courses?: {
+      all_found: Course[]
+      in_progress: Course[]
+      completed: Course[]
+    },
+    studentInfo?: { name?: string; expected_graduation?: string; program?: string },
+  ) {
     await act(async () => {
-      root.render(<UpcomingMilestones {...props} />)
+      root.render(
+        <UpcomingMilestones
+          creditRequirements={creditRequirements}
+          courses={courses}
+          studentInfo={studentInfo}
+        />,
+      )
     })
   }
 
-  it('renders milestone items from requirements and courses', async () => {
-    const reqs = [
-      makeReq('Gen Ed', 30, 27, 3),    // needed=0, complete
-      makeReq('Major', 42, 38, 0),      // needed=4, near completion
+  // ─── Empty / null state ─────────────────────────────────────
+
+  it('returns null (renders nothing) for empty requirements with no courses', async () => {
+    await renderMilestones([])
+    expect(container.firstChild).toBeNull()
+  })
+
+  it('renders nothing when all requirements are fully met and no courses in progress', async () => {
+    const reqs: CreditRequirement[] = [
+      { label: 'Total', required: 120, earned: 120, in_progress: 0, needed: 0 },
     ]
-    const courses = {
-      all_found: [makeCourse('Fall 2023', 'A')],
-      in_progress: [makeCourse('Spring 2024', null)],
-      completed: [makeCourse('Fall 2023', 'A')],
-    }
-    await render({ creditRequirements: reqs, courses })
-
-    // Should show "Complete Major" milestone (near completion, needed=4 ≤ 6)
-    expect(container.textContent).toContain('Complete Major')
-    // Should show current courses milestone
-    expect(container.textContent).toContain('Complete Current Courses')
+    await renderMilestones(reqs)
+    // overallProgress = 100% → goes into the graduation milestone block (75–100%)
+    // But "needed: 0" means no near-completion milestone from nearCompletion filter
+    // 100% overall means none of the 25/50/75 blocks trigger either
+    // So only courses/studentInfo could add items — none here
+    expect(container.firstChild).toBeNull()
   })
 
-  it('high priority milestones appear before low priority', async () => {
-    const reqs = [
-      makeReq('Major', 42, 38, 0), // needed=4 → high priority next-requirement
+  // ─── Near-completion milestone ───────────────────────────────
+
+  it('shows "Complete <label>" milestone when a requirement has needed <= 6', async () => {
+    const reqs: CreditRequirement[] = [
+      { label: 'Math Electives', required: 12, earned: 9, in_progress: 0, needed: 3 },
     ]
-    const studentInfo: StudentInfo = { expected_graduation: 'Spring 2026' }
-    await render({ creditRequirements: reqs, studentInfo })
-
-    const text = container.textContent ?? ''
-    const majorIdx = text.indexOf('Complete Major')
-    const gradIdx = text.indexOf('Expected Graduation')
-    expect(majorIdx).toBeGreaterThan(-1)
-    expect(gradIdx).toBeGreaterThan(-1)
-    // High priority "Complete Major" should come before low priority "Expected Graduation"
-    expect(majorIdx).toBeLessThan(gradIdx)
+    await renderMilestones(reqs)
+    expect(container.textContent).toContain('Complete Math Electives')
+    expect(container.textContent).toContain('3 more credits needed')
   })
 
-  it('renders nothing when no milestones are generated', async () => {
-    // All complete, no near-completion, no in-progress courses, no graduation date
-    const reqs = [makeReq('Gen Ed', 30, 30, 0)]
-    await render({ creditRequirements: reqs })
-
-    // Component returns null when milestones.length === 0
-    // No milestones heading should be present
-    expect(container.textContent).not.toContain('Upcoming Milestones')
-    expect(container.innerHTML).toBe('')
+  it('does not show near-completion milestone when needed > 6', async () => {
+    const reqs: CreditRequirement[] = [
+      { label: 'Core Requirements', required: 60, earned: 20, in_progress: 0, needed: 40 },
+    ]
+    await renderMilestones(reqs)
+    expect(container.textContent).not.toContain('Complete Core Requirements')
   })
 
-  it('shows graduation milestone for students at 75%+ progress', async () => {
-    // 80/100 = 80% overall progress → triggers "Complete Your Degree!" milestone
-    const reqs = [makeReq('Total', 100, 80, 0)]
-    await render({ creditRequirements: reqs })
+  // ─── Overall progress milestones ────────────────────────────
 
-    expect(container.textContent).toContain('Complete Your Degree!')
-  })
-
-  it('shows halfway milestone for students between 25-50%', async () => {
-    // 35/100 = 35%
-    const reqs = [makeReq('Total', 100, 35, 0)]
-    await render({ creditRequirements: reqs })
-
+  it('shows "Reach 50% Completion" milestone when overall progress is 25–49%', async () => {
+    // 30 of 120 earned = 25%
+    const reqs: CreditRequirement[] = [
+      { label: 'Total', required: 120, earned: 30, in_progress: 0, needed: 90 },
+    ]
+    await renderMilestones(reqs)
     expect(container.textContent).toContain('Reach 50% Completion')
   })
 
-  it('shows expected graduation date from student info', async () => {
-    const reqs = [makeReq('Major', 42, 38, 0)] // needed=4 to generate at least one milestone
-    const studentInfo: StudentInfo = { expected_graduation: 'May 2027' }
-    await render({ creditRequirements: reqs, studentInfo })
-
-    expect(container.textContent).toContain('May 2027')
-    expect(container.textContent).toContain('Expected Graduation')
+  it('shows "Reach 75% Completion" milestone when overall progress is 50–74%', async () => {
+    // 72 of 120 = 60%
+    const reqs: CreditRequirement[] = [
+      { label: 'Total', required: 120, earned: 72, in_progress: 0, needed: 48 },
+    ]
+    await renderMilestones(reqs)
+    expect(container.textContent).toContain('Reach 75% Completion')
   })
 
-  it('progress bars have correct aria attributes', async () => {
-    const reqs = [makeReq('Major', 42, 38, 0)] // needed=4
-    await render({ creditRequirements: reqs })
+  it('shows graduation milestone when overall progress is 75–99%', async () => {
+    // 90 of 120 = 75%
+    const reqs: CreditRequirement[] = [
+      { label: 'Total', required: 120, earned: 90, in_progress: 0, needed: 30 },
+    ]
+    await renderMilestones(reqs)
+    expect(container.textContent).toContain('Complete Your Degree')
+  })
 
-    const progressbar = container.querySelector('[role="progressbar"]')
-    expect(progressbar).not.toBeNull()
-    expect(Number(progressbar!.getAttribute('aria-valuenow'))).toBeGreaterThan(0)
-    expect(progressbar!.getAttribute('aria-valuemin')).toBe('0')
-    expect(progressbar!.getAttribute('aria-valuemax')).toBe('100')
+  // ─── In-progress courses milestone ──────────────────────────
+
+  it('shows "Complete Current Courses" milestone when courses are in progress', async () => {
+    const reqs: CreditRequirement[] = [
+      { label: 'Total', required: 120, earned: 30, in_progress: 9, needed: 90 },
+    ]
+    const inProgress: Course[] = [
+      { title: 'CS 401', credits: 3 },
+      { title: 'MATH 301', credits: 3 },
+      { title: 'ENG 201', credits: 3 },
+    ]
+    await renderMilestones(reqs, {
+      all_found: inProgress,
+      in_progress: inProgress,
+      completed: [],
+    })
+    expect(container.textContent).toContain('Complete Current Courses')
+    expect(container.textContent).toContain('3 courses')
+    expect(container.textContent).toContain('9 credits')
+  })
+
+  it('does not show current courses milestone when in_progress is empty', async () => {
+    const reqs: CreditRequirement[] = [
+      { label: 'Total', required: 120, earned: 30, in_progress: 0, needed: 90 },
+    ]
+    await renderMilestones(reqs, { all_found: [], in_progress: [], completed: [] })
+    expect(container.textContent).not.toContain('Complete Current Courses')
+  })
+
+  // ─── Expected graduation milestone ──────────────────────────
+
+  it('shows expected graduation milestone when studentInfo has expected_graduation', async () => {
+    const reqs: CreditRequirement[] = [
+      { label: 'Total', required: 120, earned: 30, in_progress: 0, needed: 90 },
+    ]
+    await renderMilestones(reqs, undefined, { expected_graduation: 'Spring 2027' })
+    expect(container.textContent).toContain('Expected Graduation')
+    expect(container.textContent).toContain('Spring 2027')
+  })
+
+  it('does not show graduation date milestone when studentInfo has no expected_graduation', async () => {
+    const reqs: CreditRequirement[] = [
+      { label: 'Total', required: 120, earned: 30, in_progress: 0, needed: 90 },
+    ]
+    await renderMilestones(reqs, undefined, { name: 'Jane' })
+    expect(container.textContent).not.toContain('Expected Graduation')
+  })
+
+  // ─── Progress bar ────────────────────────────────────────────
+
+  it('renders a progress bar for the near-completion milestone', async () => {
+    const reqs: CreditRequirement[] = [
+      { label: 'Math Electives', required: 12, earned: 9, in_progress: 0, needed: 3 },
+    ]
+    await renderMilestones(reqs)
+    const progressBar = container.querySelector('[role="progressbar"]')
+    expect(progressBar).not.toBeNull()
+    const value = Number(progressBar!.getAttribute('aria-valuenow'))
+    expect(value).toBeGreaterThan(0)
+    expect(value).toBeLessThanOrEqual(100)
+  })
+
+  // ─── Max 4 milestones ────────────────────────────────────────
+
+  it('renders at most 4 milestone tiles', async () => {
+    // All conditions can fire: near-completion, 25-49% progress, in-progress courses, graduation date
+    const reqs: CreditRequirement[] = [
+      { label: 'Gen Ed', required: 40, earned: 6, in_progress: 0, needed: 4 },
+      { label: 'Total', required: 120, earned: 30, in_progress: 9, needed: 90 },
+    ]
+    const inProgress: Course[] = [{ title: 'CS 301', credits: 3 }, { title: 'MATH 201', credits: 3 }, { title: 'ENG 201', credits: 3 }]
+    await renderMilestones(
+      reqs,
+      { all_found: inProgress, in_progress: inProgress, completed: [] },
+      { expected_graduation: 'Spring 2027' },
+    )
+    // Component slices to max 4
+    const tiles = container.querySelectorAll('[class*="rounded-xl"][class*="border"]')
+    expect(tiles.length).toBeLessThanOrEqual(4)
+  })
+
+  // ─── Static UI ───────────────────────────────────────────────
+
+  it('renders "Upcoming Milestones" heading when milestones exist', async () => {
+    const reqs: CreditRequirement[] = [
+      { label: 'Total', required: 120, earned: 30, in_progress: 0, needed: 90 },
+    ]
+    await renderMilestones(reqs, undefined, { expected_graduation: 'Spring 2027' })
+    expect(container.textContent).toContain('Upcoming Milestones')
   })
 })

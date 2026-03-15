@@ -150,3 +150,7 @@
 ## Wave 20 Extended Summary (2026-03-15)
 - **Build**: PASS (CI=true, 0 TS errors)
 - **Wave 20 ext additions**: DT173 RequirementCard, DT174 this final
+
+## Wave 21 Summary (2026-03-15)
+- **Build**: PASS (1.33s, CI=true, 0 TS errors)
+- **Wave 21 additions**: DT175 ScheduleConflictBanner, DT176 GraduationTracker, DT177 CourseCard, DT178 this final

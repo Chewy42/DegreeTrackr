@@ -202,4 +202,45 @@ describe('ExploreClassesSidebar (component render)', () => {
       .join(' ')
     expect(text).toContain('No matching classes found')
   })
+
+  // ── DT69 render cap ────────────────────────────────────────────────────────
+
+  it('renders at most 50 class cards initially when given 100+ items', async () => {
+    const courses = Array.from({ length: 100 }, (_, i) => makeCourse(i + 1))
+    mocks.queryFn.mockResolvedValue(makePayload(courses))
+    await render()
+
+    // Count rendered class cards (each card contains a FiBookOpen icon with the code)
+    const cards = container.querySelectorAll('.rounded-xl.border')
+    expect(cards.length).toBe(50)
+
+    // "Show more" button should be visible
+    const showMoreBtn = Array.from(container.querySelectorAll('button')).find(b =>
+      b.textContent?.includes('Show more')
+    )
+    expect(showMoreBtn).toBeDefined()
+    expect(showMoreBtn!.textContent).toContain('50 remaining')
+  })
+
+  it('"Show more" reveals the next batch of 50 classes', async () => {
+    const courses = Array.from({ length: 100 }, (_, i) => makeCourse(i + 1))
+    mocks.queryFn.mockResolvedValue(makePayload(courses))
+    await render()
+
+    // Click "Show more"
+    const showMoreBtn = Array.from(container.querySelectorAll('button')).find(b =>
+      b.textContent?.includes('Show more')
+    )!
+    await act(async () => { showMoreBtn.click() })
+
+    // All 100 should now be rendered
+    const cards = container.querySelectorAll('.rounded-xl.border')
+    expect(cards.length).toBe(100)
+
+    // "Show more" should be gone
+    const showMoreAfter = Array.from(container.querySelectorAll('button')).find(b =>
+      b.textContent?.includes('Show more')
+    )
+    expect(showMoreAfter).toBeUndefined()
+  })
 })

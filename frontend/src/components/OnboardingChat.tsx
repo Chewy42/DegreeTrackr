@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Navigate } from 'react-router-dom';
 import {
   FiCheckCircle,
@@ -108,6 +108,7 @@ export default function OnboardingChat() {
   const [loading, setLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);
+  const firstOptionRef = useRef<HTMLButtonElement>(null);
 
   // Persist in-progress answers to sessionStorage so the user can resume if they leave mid-flow
   useEffect(() => {
@@ -118,6 +119,11 @@ export default function OnboardingChat() {
       );
     } catch { /* ignore */ }
   }, [currentQuestionIndex, answers]);
+
+  // Move focus to the first option button when the question advances
+  useEffect(() => {
+    firstOptionRef.current?.focus();
+  }, [currentQuestionIndex]);
 
   const currentQuestion = ONBOARDING_QUESTIONS[currentQuestionIndex];
   const progressPercent = Math.round(((currentQuestionIndex) / ONBOARDING_QUESTIONS.length) * 100);
@@ -286,7 +292,7 @@ export default function OnboardingChat() {
         </div>
 
         {/* Question Area */}
-        <div className="flex-1 bg-slate-50 p-6 md:p-8">
+        <div className="flex-1 bg-slate-50 p-6 md:p-8" aria-live="polite">
           {currentQuestion && (
             <div className="space-y-6">
               {/* Question */}
@@ -313,7 +319,7 @@ export default function OnboardingChat() {
               )}
 
               {loading && (
-                <div role="status" aria-live="polite" className="pl-16">
+                <div role="status" aria-live="polite" aria-label="Loading response" className="pl-16">
                   <p className="text-sm text-slate-600 bg-slate-100 border border-slate-200 rounded-lg px-4 py-3">
                     Saving your answer…
                   </p>
@@ -322,9 +328,10 @@ export default function OnboardingChat() {
 
               {/* Options as Buttons */}
               <div className="space-y-3 pl-16">
-                {currentQuestion.options.map((option) => (
+                {currentQuestion.options.map((option, idx) => (
                   <button
                     key={option.value}
+                    ref={idx === 0 ? firstOptionRef : undefined}
                     type="button"
                     onClick={() => handleOptionClick(currentQuestion.id, option.value)}
                     disabled={loading}

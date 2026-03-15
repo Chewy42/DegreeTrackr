@@ -56,6 +56,7 @@ export default function ExploreClassesSidebar() {
   const [classes, setClasses] = useState<UpcomingClass[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [displayLimit, setDisplayLimit] = useState(50);
 
   const fetchUpcomingClasses = useCallback(async () => {
     setLoading(true);
@@ -106,7 +107,7 @@ export default function ExploreClassesSidebar() {
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setDisplayLimit(50); }}
             aria-label="Search upcoming classes by course, professor, or term"
             placeholder="Search by course, prof, or term"
             className="w-full rounded-full border border-slate-200 bg-slate-50 pl-9 pr-3 py-2 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white focus:border-blue-500 transition-colors"
@@ -129,7 +130,7 @@ export default function ExploreClassesSidebar() {
           </div>
         )}
 
-        {!loading && !error && filtered.map((cls) => (
+        {!loading && !error && filtered.slice(0, displayLimit).map((cls) => (
           <div
             key={cls.id}
             className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50/60 hover:border-blue-200 transition-colors p-3 text-xs"
@@ -148,6 +149,16 @@ export default function ExploreClassesSidebar() {
             </div>
           </div>
         ))}
+
+        {!loading && !error && filtered.length > displayLimit && (
+          <button
+            type="button"
+            onClick={() => setDisplayLimit((prev) => prev + 50)}
+            className="w-full py-2 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+          >
+            Show more ({filtered.length - displayLimit} remaining)
+          </button>
+        )}
 
         {!loading && !error && filtered.length === 0 && classes.length > 0 && (
           <div role="status" aria-live="polite" className="text-[11px] text-slate-400 text-center mt-6">

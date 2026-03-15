@@ -265,4 +265,48 @@ describe('OnboardingChat', () => {
     expect(container.querySelector('[data-testid="navigate-redirect"]')).toBeNull()
     expect(container.textContent).toContain('Quick Setup')
   })
+
+  // ── DT68 a11y audit tests ──────────────────────────────────────────────────
+
+  it('question area has aria-live="polite" for screen reader announcements', async () => {
+    await renderComponent()
+    const liveRegion = container.querySelector('[aria-live="polite"]')
+    expect(liveRegion).not.toBeNull()
+    expect(liveRegion!.textContent).toContain('What would you like to focus on today?')
+  })
+
+  it('loading spinner has role="status" and aria-label', async () => {
+    let resolveOnboarding!: () => void
+    const deferred = new Promise<void>(res => { resolveOnboarding = res })
+    mocks.completeOnboarding.mockReturnValueOnce(deferred)
+
+    await renderComponent()
+
+    // Navigate to last question
+    await clickButton('Plan my next semester')
+    await clickButton('Light (9-12 credits)')
+    await clickButton('Mornings')
+    await clickButton('Part-time job')
+
+    // Trigger final answer without resolving
+    act(() => { getButton('Complete major requirements')!.click() })
+
+    const spinner = container.querySelector('[role="status"]')
+    expect(spinner).not.toBeNull()
+    expect(spinner!.getAttribute('aria-label')).toBe('Loading response')
+
+    await act(async () => { resolveOnboarding() })
+  })
+
+  it('focuses the first option button when question advances', async () => {
+    await renderComponent()
+    await clickButton('Plan my next semester')
+
+    // After advancing, the first option of question 2 should be focused
+    const firstOption = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(b =>
+      b.textContent?.includes('Light (9-12 credits)')
+    )
+    expect(firstOption).not.toBeUndefined()
+    expect(document.activeElement).toBe(firstOption)
+  })
 })

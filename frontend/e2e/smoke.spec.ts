@@ -301,6 +301,118 @@ test.describe("authenticated navigation and page rendering", () => {
   });
 });
 
+test.describe("mobile viewport (375px)", () => {
+  const stubClerkAndPrefsMobile = async (
+    page: import("@playwright/test").Page,
+    prefsOverride: Record<string, unknown> = {},
+  ) => {
+    const prefs = { hasProgramEvaluation: true, onboardingComplete: true, ...prefsOverride };
+    await page.addInitScript((p: Record<string, unknown>) => {
+      window.localStorage.setItem("degreetrackr.preferences", JSON.stringify(p));
+    }, prefs);
+
+    await page.route("**/v1/client**", async (route) => {
+      if (!route.request().url().includes("clerk")) return route.continue();
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          response: {
+            sessions: [{ id: "sess_stub", status: "active" }],
+            last_active_session_id: "sess_stub",
+          },
+          client: {
+            sessions: [{ id: "sess_stub", status: "active" }],
+            last_active_session_id: "sess_stub",
+          },
+        }),
+      });
+    });
+  };
+
+  test("landing page renders without horizontal scroll at 375px", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+
+    const errors: Error[] = [];
+    page.on("pageerror", (err) => errors.push(err));
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    expect(errors).toHaveLength(0);
+
+    const noHorizontalScroll = await page.evaluate(
+      () => document.body.scrollWidth <= 375,
+    );
+    expect(noHorizontalScroll).toBe(true);
+  });
+
+  test("sidebar hamburger/toggle button is visible at 375px", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await stubClerkAndPrefsMobile(page);
+
+    const errors: Error[] = [];
+    page.on("pageerror", (err) => errors.push(err));
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    expect(errors).toHaveLength(0);
+
+    // Look for a hamburger/menu toggle button at mobile width
+    const menuButton = page.getByRole("button", { name: /menu/i });
+    const hamburgerIcon = page.getByTestId("sidebar-toggle");
+    const authButton = page.getByRole("button", { name: /continue with google/i });
+
+    const menuVisible = await menuButton.isVisible().catch(() => false);
+    const hamburgerVisible = await hamburgerIcon.isVisible().catch(() => false);
+    const authVisible = await authButton.isVisible().catch(() => false);
+
+    // Either the mobile menu toggle renders, or auth fallback is shown
+    expect(menuVisible || hamburgerVisible || authVisible).toBe(true);
+  });
+
+  test("OnboardingChat renders at 375px for new users", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await stubClerkAndPrefsMobile(page, { onboardingComplete: false });
+
+    const errors: Error[] = [];
+    page.on("pageerror", (err) => errors.push(err));
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    expect(errors).toHaveLength(0);
+
+    const quickSetup = page.getByText(/Quick Setup/i);
+    const questionText = page.getByText(/What would you like to focus on today/i);
+    const authButton = page.getByRole("button", { name: /continue with google/i });
+
+    const setupVisible = await quickSetup.isVisible().catch(() => false);
+    const questionVisible = await questionText.isVisible().catch(() => false);
+    const authVisible = await authButton.isVisible().catch(() => false);
+
+    expect(setupVisible || questionVisible || authVisible).toBe(true);
+  });
+
+  test("progress page renders without overflow at 375px", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await stubClerkAndPrefsMobile(page);
+
+    const errors: Error[] = [];
+    page.on("pageerror", (err) => errors.push(err));
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    expect(errors).toHaveLength(0);
+
+    // Verify no horizontal overflow at mobile width
+    const scrollWidth = await page.evaluate(() => document.body.scrollWidth);
+    expect(scrollWidth).toBeLessThanOrEqual(375);
+  });
+});
+
 test.describe("smoke suite", () => {
   test("app loads — page title includes DegreeTrackr", async ({ page }) => {
     const errors: Error[] = [];

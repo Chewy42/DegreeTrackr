@@ -220,7 +220,7 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
               <FiMessageSquare className="h-8 w-8 text-brand-400" />
             </div>
             <div className="max-w-xs">
-              <h3 className="text-sm font-medium text-slate-800">Start a new exploration</h3>
+              <h2 className="text-sm font-medium text-slate-800">Start a new exploration</h2>
               <p className="text-xs text-slate-500 mt-1">
                 Ask about your major, career paths, or degree progress.
               </p>

@@ -535,6 +535,91 @@ describe('ScheduleBuilder', () => {
     expect(container.querySelector('[role="alert"][aria-live="polite"]')).toBeNull()
   })
 
+  // ── DT50 schedule export ──────────────────────────────────────────────────
+
+  describe('schedule export', () => {
+    let createObjectURL: ReturnType<typeof vi.fn>
+    let revokeObjectURL: ReturnType<typeof vi.fn>
+    let clickSpy: ReturnType<typeof vi.spyOn>
+
+    beforeEach(() => {
+      createObjectURL = vi.fn().mockReturnValue('blob:mock-export-url')
+      revokeObjectURL = vi.fn()
+      global.URL.createObjectURL = createObjectURL
+      global.URL.revokeObjectURL = revokeObjectURL
+      clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    })
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('Export Schedule button renders in toolbar when schedule is empty (disabled)', async () => {
+      await render()
+      const exportBtn = Array.from(container.querySelectorAll('button')).find(b =>
+        b.textContent?.includes('Export Schedule'),
+      )
+      expect(exportBtn).not.toBeNull()
+      expect(exportBtn!.disabled).toBe(true)
+    })
+
+    it('clicking Export Schedule triggers a JSON download with filename matching schedule-YYYY-MM-DD.json', async () => {
+      await render()
+      await act(async () => { sidebarProps!.onAddClass(CLASS_A) })
+
+      const exportBtn = Array.from(container.querySelectorAll('button')).find(b =>
+        b.textContent?.includes('Export Schedule'),
+      )
+      expect(exportBtn).not.toBeNull()
+
+      await act(async () => { exportBtn!.click() })
+
+      expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob))
+      expect(clickSpy).toHaveBeenCalled()
+
+      // Verify blob type is JSON
+      const blobArg = createObjectURL.mock.calls[0]![0] as Blob
+      expect(blobArg.type).toBe('application/json')
+    })
+
+    it('CSV button triggers a CSV download with filename matching schedule-YYYY-MM-DD.csv', async () => {
+      await render()
+      await act(async () => { sidebarProps!.onAddClass(CLASS_A) })
+
+      const csvBtn = Array.from(container.querySelectorAll('button')).find(b =>
+        b.textContent === 'CSV',
+      )
+      expect(csvBtn).not.toBeNull()
+
+      await act(async () => { csvBtn!.click() })
+
+      expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob))
+      expect(clickSpy).toHaveBeenCalled()
+
+      const blobArg = createObjectURL.mock.calls[0]![0] as Blob
+      expect(blobArg.type).toBe('text/csv')
+    })
+
+    it('export JSON blob contains class data for all scheduled classes', async () => {
+      await render()
+      await act(async () => { sidebarProps!.onAddClass(CLASS_A) })
+      await act(async () => { sidebarProps!.onAddClass(CLASS_B) })
+
+      const exportBtn = Array.from(container.querySelectorAll('button')).find(b =>
+        b.textContent?.includes('Export Schedule'),
+      )
+      await act(async () => { exportBtn!.click() })
+
+      const blobArg = createObjectURL.mock.calls[0]![0] as Blob
+      const text = await blobArg.text()
+      const parsed = JSON.parse(text) as Array<{ code: string; credits: number }>
+
+      expect(parsed).toHaveLength(2)
+      expect(parsed.map(c => c.code)).toContain('CS 101')
+      expect(parsed.map(c => c.code)).toContain('MATH 201')
+    })
+  })
+
   // ── DT42 schedule draft persistence ───────────────────────────────────────
 
   describe('draft schedule persistence', () => {

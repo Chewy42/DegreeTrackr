@@ -56,7 +56,10 @@ export default defineSchema({
     archivedAt: v.optional(v.number()),
     onboardingAnswers: v.optional(onboardingAnswers),
     onboardingStep: v.optional(v.number()),
-  }).index('by_userId_and_scope', ['userId', 'scope']),
+  })
+    .index('by_userId_and_scope', ['userId', 'scope'])
+    .index('by_userId', ['userId'])
+    .index('by_lastMessageAt', ['lastMessageAt']),
 
   // ── Chat messages ──────────────────────────────────────────────────────────
   chatMessages: defineTable({
@@ -74,7 +77,9 @@ export default defineSchema({
     totalCredits: v.number(),
     createdAt: v.number(), // epoch ms
     migrationSource,
-  }).index('by_userId', ['userId']),
+  })
+    .index('by_userId', ['userId'])
+    .index('by_createdAt', ['createdAt']),
 
   // ── Schedule drafts (auto-saved current schedule) ──────────────────────────
   scheduleDrafts: defineTable({

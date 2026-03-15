@@ -19,7 +19,7 @@ import SnapshotManagerModal from './SnapshotManagerModal';
 import { useAuth } from '../../auth/AuthContext';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { convexApi, getConvexClient } from '../../lib/convex';
-import { FiTrendingUp, FiCpu, FiLoader, FiSave } from 'react-icons/fi';
+import { FiTrendingUp, FiCpu, FiLoader, FiSave, FiDownload } from 'react-icons/fi';
 
 export default function ScheduleBuilder() {
   usePageTitle("Schedule Builder");
@@ -371,6 +371,56 @@ export default function ScheduleBuilder() {
 	  setScheduledClasses([]);
 	}, [scheduledClasses.length]);
 
+	const handleExportSchedule = useCallback((format: 'json' | 'csv') => {
+	  if (scheduledClasses.length === 0) return;
+	  const date = new Date().toISOString().slice(0, 10);
+	  let content: string;
+	  let mimeType: string;
+	  let filename: string;
+
+	  if (format === 'json') {
+	    const data = scheduledClasses.map(cls => {
+	      const [startTime = '', endTime = ''] = cls.displayTime.split(' - ');
+	      return {
+	        code: cls.code,
+	        className: cls.title,
+	        days: cls.displayDays,
+	        startTime: startTime.trim(),
+	        endTime: endTime.trim(),
+	        credits: cls.credits,
+	        instructor: cls.professor,
+	      };
+	    });
+	    content = JSON.stringify(data, null, 2);
+	    mimeType = 'application/json';
+	    filename = `schedule-${date}.json`;
+	  } else {
+	    const header = 'Class,Days,StartTime,EndTime,Credits,Instructor';
+	    const rows = scheduledClasses.map(cls => {
+	      const [startTime = '', endTime = ''] = cls.displayTime.split(' - ');
+	      return [
+	        `"${cls.code} - ${cls.title}"`,
+	        `"${cls.displayDays}"`,
+	        `"${startTime.trim()}"`,
+	        `"${endTime.trim()}"`,
+	        cls.credits,
+	        `"${cls.professor}"`,
+	      ].join(',');
+	    });
+	    content = [header, ...rows].join('\n');
+	    mimeType = 'text/csv';
+	    filename = `schedule-${date}.csv`;
+	  }
+
+	  const blob = new Blob([content], { type: mimeType });
+	  const url = URL.createObjectURL(blob);
+	  const a = document.createElement('a');
+	  a.href = url;
+	  a.download = filename;
+	  a.click();
+	  URL.revokeObjectURL(url);
+	}, [scheduledClasses]);
+
 	  return (
 	    <div className="flex flex-col lg:flex-row h-full min-h-0 bg-slate-50 overflow-hidden relative">
       {/* Loading Overlay */}
@@ -486,6 +536,16 @@ export default function ScheduleBuilder() {
 	          <FiSave className="w-3.5 h-3.5" aria-hidden="true" />
 	          <span className="sr-only">Snapshots</span>
 	        </button>
+	        <button
+	          type="button"
+	          onClick={() => handleExportSchedule('json')}
+	          disabled={scheduledClasses.length === 0}
+	          className="px-3 py-1.5 rounded-full text-sm font-medium border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 transition-colors"
+	          title={scheduledClasses.length === 0 ? 'Add classes to export' : 'Export schedule'}
+	        >
+	          <FiDownload className="w-3.5 h-3.5" aria-hidden="true" />
+	          <span className="sr-only">Export Schedule</span>
+	        </button>
       </div>
 
 	      {/* Main Content */}
@@ -538,6 +598,27 @@ export default function ScheduleBuilder() {
 	            >
 	              <FiSave className="w-4 h-4" aria-hidden="true" />
 	              <span>Snapshots</span>
+	            </button>
+
+	            <button
+	              type="button"
+	              onClick={() => handleExportSchedule('json')}
+	              disabled={scheduledClasses.length === 0}
+	              title={scheduledClasses.length === 0 ? 'Add classes to export' : 'Export schedule as JSON'}
+	              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+	            >
+	              <FiDownload className="w-4 h-4" aria-hidden="true" />
+	              <span>Export Schedule</span>
+	            </button>
+
+	            <button
+	              type="button"
+	              onClick={() => handleExportSchedule('csv')}
+	              disabled={scheduledClasses.length === 0}
+	              title={scheduledClasses.length === 0 ? 'Add classes to export' : 'Export schedule as CSV'}
+	              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border border-slate-200 text-slate-500 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+	            >
+	              <span>CSV</span>
 	            </button>
 
 	            <button

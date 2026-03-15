@@ -184,3 +184,8 @@
 - **Build**: PASS (1.49s, CI=true, 0 TS errors)
 - **Test files**: 160
 - **Wave 26 additions**: DT219 academicCalendar, DT220 chatRateLimit, DT221 degreeTimeline, DT222 gpaProjection, DT223 notificationPrefs, DT224 prerequisiteCheck, DT225 profileAvatar, DT226 profileCompletion, DT227 usePageTitle, DT228 = this entry
+
+## Wave 27 Complete (2026-03-15 06:41 AM)
+- **Build**: PASS (1.34s, CI=true, 0 TS errors)
+- **Test files**: 166
+- **Wave 27 additions**: DT229 degreeTemplate, DT230 scheduleCapacity, DT231 scheduleExport, DT232 semesterGrouping, DT233 transcriptImport, DT234 convex/config, DT235 evaluationHelpers, DT236 profileHelpers, DT237 chatHelpers, DT238 = this entry

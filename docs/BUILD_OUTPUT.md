@@ -1,5 +1,9 @@
 # Build Output — DegreeTrackr Frontend
 
+## Wave 13+14 Extended Summary (2026-03-14)
+- Build: PASS (CI=true, 0 TS errors)
+- Wave 13+14 additions: DT130-DT147 coverage (auth edge cases, regression, schema validation, error boundary, schedule diff, requirements %, chat format, a11y sweep, perf budget, userState, undo/redo, degree audit, this final)
+
 ## Wave 13 Summary (2026-03-14)
 - Build: PASS (1.62s, CI=true, 0 TS errors)
 - Test files: 105 (all passing)

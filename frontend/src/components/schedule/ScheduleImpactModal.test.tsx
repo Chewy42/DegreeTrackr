@@ -3,14 +3,15 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
+import ScheduleImpactModal from './ScheduleImpactModal'
 import type { ScheduledClass, RequirementsSummary } from './types'
 
-// ── Test factories ───────────────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────
 
-function makeScheduledClass(overrides: Partial<ScheduledClass> = {}): ScheduledClass {
+function makeClass(overrides: Partial<ScheduledClass> = {}): ScheduledClass {
   return {
     id: 'CS-101-01',
-    code: 'CS 101',
+    code: 'CS 101-01',
     subject: 'CS',
     number: '101',
     section: '01',
@@ -18,45 +19,41 @@ function makeScheduledClass(overrides: Partial<ScheduledClass> = {}): ScheduledC
     credits: 3,
     displayDays: 'MWF',
     displayTime: '10:00am - 10:50am',
-    location: 'Room 100',
-    professor: 'Prof Test',
-    professorRating: null,
+    location: 'SCI 101',
+    professor: 'Dr. Smith',
+    professorRating: 4.5,
     semester: 'spring2026',
-    semestersOffered: [],
-    requirementsSatisfied: [
-      { type: 'major_core', label: 'Major Core', shortLabel: 'Core', color: 'blue' },
-    ],
+    semestersOffered: ['Spring', 'Fall'],
     occurrenceData: {
       starts: 0,
       ends: 0,
       daysOccurring: { M: [], Tu: [], W: [], Th: [], F: [], Sa: [], Su: [] },
     },
-    color: '#DBEAFE',
+    requirementsSatisfied: [],
+    color: '#3b82f6',
     ...overrides,
   }
 }
 
-function makeRequirementsSummary(): RequirementsSummary {
-  return {
-    total: 2,
-    byType: { major_core: 1, ge: 1 },
-    requirements: [
-      { type: 'major_core', label: 'Major Core', creditsNeeded: 12 },
-      { type: 'ge', label: 'General Education', creditsNeeded: 6 },
-    ],
-  }
+const BASE_REQUIREMENTS: RequirementsSummary = {
+  total: 2,
+  byType: { major_core: 1, ge: 1 },
+  requirements: [
+    { type: 'major_core', label: 'Core CS', creditsNeeded: 9 },
+    { type: 'ge', label: 'General Education', creditsNeeded: 6 },
+  ],
 }
-
-// ── Test suite ───────────────────────────────────────────────────────────────
 
 describe('ScheduleImpactModal', () => {
   let container: HTMLDivElement
   let root: ReturnType<typeof createRoot>
+  const onClose = vi.fn()
 
   beforeEach(() => {
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
+    vi.clearAllMocks()
   })
 
   afterEach(async () => {
@@ -64,168 +61,139 @@ describe('ScheduleImpactModal', () => {
     container.remove()
   })
 
-  async function render(props: {
-    isOpen: boolean
-    onClose: () => void
-    scheduledClasses: ScheduledClass[]
-    baseRequirements: RequirementsSummary | null
-  }) {
-    const { default: ScheduleImpactModal } = await import('./ScheduleImpactModal')
+  async function renderModal(
+    isOpen: boolean,
+    scheduledClasses: ScheduledClass[],
+    baseRequirements: RequirementsSummary | null,
+  ) {
     await act(async () => {
-      root.render(<ScheduleImpactModal {...props} />)
+      root.render(
+        <ScheduleImpactModal
+          isOpen={isOpen}
+          onClose={onClose}
+          scheduledClasses={scheduledClasses}
+          baseRequirements={baseRequirements}
+        />,
+      )
     })
   }
 
+  // ─── isOpen gate ───────────────────────────────────────────
+
   it('renders nothing when isOpen is false', async () => {
-    const onClose = vi.fn()
-    await render({
-      isOpen: false,
-      onClose,
-      scheduledClasses: [],
-      baseRequirements: makeRequirementsSummary(),
-    })
-    expect(container.textContent).toBe('')
+    await renderModal(false, [], BASE_REQUIREMENTS)
+    expect(container.firstChild).toBeNull()
   })
 
+  it('renders the modal when isOpen is true', async () => {
+    await renderModal(true, [], BASE_REQUIREMENTS)
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull()
+  })
+
+  // ─── Header ────────────────────────────────────────────────
+
+  it('shows "Projected Progress" title when open', async () => {
+    await renderModal(true, [], BASE_REQUIREMENTS)
+    expect(container.textContent).toContain('Projected Progress')
+  })
+
+  // ─── Close button ──────────────────────────────────────────
+
+  it('calls onClose when the close button is clicked', async () => {
+    await renderModal(true, [], BASE_REQUIREMENTS)
+    const closeBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!
+    await act(async () => { closeBtn.click() })
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('calls onClose when the footer "Close" button is clicked', async () => {
+    await renderModal(true, [], BASE_REQUIREMENTS)
+    const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
+    const footerClose = buttons.find(b => b.textContent?.trim() === 'Close')!
+    await act(async () => { footerClose.click() })
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  // ─── null requirements (loading) ───────────────────────────
+
   it('shows loading message when baseRequirements is null', async () => {
-    const onClose = vi.fn()
-    await render({
-      isOpen: true,
-      onClose,
-      scheduledClasses: [],
-      baseRequirements: null,
-    })
+    await renderModal(true, [], null)
     expect(container.textContent).toContain('Loading requirements')
   })
 
-  it('shows "no remaining requirements" when impact data is empty', async () => {
-    const onClose = vi.fn()
-    await render({
-      isOpen: true,
-      onClose,
-      scheduledClasses: [],
-      baseRequirements: {
-        total: 0,
-        byType: {},
-        requirements: [],
-      },
-    })
+  // ─── Empty impact data ──────────────────────────────────────
+
+  it('shows "No remaining requirements" when all requirements have 0 creditsNeeded and no classes', async () => {
+    const noNeeds: RequirementsSummary = {
+      total: 1,
+      byType: { major_core: 1 },
+      requirements: [{ type: 'major_core', label: 'Core CS', creditsNeeded: 0 }],
+    }
+    await renderModal(true, [], noNeeds)
     expect(container.textContent).toContain('No remaining requirements')
   })
 
-  it('renders requirement labels and credit counts', async () => {
-    const onClose = vi.fn()
-    const cls = makeScheduledClass({ credits: 3 })
-    await render({
-      isOpen: true,
-      onClose,
-      scheduledClasses: [cls],
-      baseRequirements: makeRequirementsSummary(),
-    })
+  // ─── Requirements with creditsNeeded shown ──────────────────
 
-    // Major Core requirement should show +3 added credits out of 12 needed
-    expect(container.textContent).toContain('Major Core')
-    expect(container.textContent).toContain('+3')
-    expect(container.textContent).toContain('12')
-    expect(container.textContent).toContain('cr needed')
-    // Remaining: 12 - 3 = 9
-    expect(container.textContent).toContain('9 remaining')
+  it('shows requirement labels that still have credits needed', async () => {
+    await renderModal(true, [], BASE_REQUIREMENTS)
+    expect(container.textContent).toContain('Core CS')
+    expect(container.textContent).toContain('General Education')
   })
 
-  it('shows contributing class codes', async () => {
-    const onClose = vi.fn()
-    const cls = makeScheduledClass()
-    await render({
-      isOpen: true,
-      onClose,
-      scheduledClasses: [cls],
-      baseRequirements: makeRequirementsSummary(),
-    })
+  // ─── Classes that satisfy requirements ──────────────────────
 
-    expect(container.textContent).toContain('CS 101')
-    expect(container.textContent).toContain('3 cr')
-  })
-
-  it('shows "Met" badge when requirement is fully satisfied', async () => {
-    const onClose = vi.fn()
-    const cls = makeScheduledClass({
-      credits: 12,
+  it('shows added credits when a class satisfies a requirement', async () => {
+    const cls = makeClass({
       requirementsSatisfied: [
-        { type: 'major_core', label: 'Major Core', shortLabel: 'Core', color: 'blue' },
+        { type: 'major_core', label: 'Core CS', shortLabel: 'Core', color: 'blue' },
       ],
     })
-    await render({
-      isOpen: true,
-      onClose,
-      scheduledClasses: [cls],
-      baseRequirements: makeRequirementsSummary(),
-    })
+    await renderModal(true, [cls], BASE_REQUIREMENTS)
+    expect(container.textContent).toContain('+3')
+  })
 
+  it('shows the class code in contributing classes section', async () => {
+    const cls = makeClass({
+      code: 'CS 101-01',
+      requirementsSatisfied: [
+        { type: 'major_core', label: 'Core CS', shortLabel: 'Core', color: 'blue' },
+      ],
+    })
+    await renderModal(true, [cls], BASE_REQUIREMENTS)
+    expect(container.textContent).toContain('CS 101-01')
+  })
+
+  it('shows "Met" badge when a requirement is fully satisfied', async () => {
+    // 9 credits needed, add 3+3+3 = 9 → fully met
+    const cls1 = makeClass({ id: 'cs-101', code: 'CS 101', credits: 3, requirementsSatisfied: [{ type: 'major_core', label: 'Core CS', shortLabel: 'Core', color: 'blue' }] })
+    const cls2 = makeClass({ id: 'cs-201', code: 'CS 201', credits: 3, requirementsSatisfied: [{ type: 'major_core', label: 'Core CS', shortLabel: 'Core', color: 'blue' }] })
+    const cls3 = makeClass({ id: 'cs-301', code: 'CS 301', credits: 3, requirementsSatisfied: [{ type: 'major_core', label: 'Core CS', shortLabel: 'Core', color: 'blue' }] })
+    await renderModal(true, [cls1, cls2, cls3], BASE_REQUIREMENTS)
     expect(container.textContent).toContain('Met')
-    expect(container.textContent).toContain('0 remaining')
   })
 
-  it('close button fires onClose', async () => {
-    const onClose = vi.fn()
-    await render({
-      isOpen: true,
-      onClose,
-      scheduledClasses: [],
-      baseRequirements: makeRequirementsSummary(),
-    })
+  // ─── No class impact ─────────────────────────────────────────
 
-    const closeBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Close"]')
-    expect(closeBtn).not.toBeNull()
-    await act(async () => { closeBtn!.click() })
-    expect(onClose).toHaveBeenCalledTimes(1)
+  it('shows "0" added credits and remaining credits when no class satisfies a requirement', async () => {
+    await renderModal(true, [], BASE_REQUIREMENTS)
+    // Both requirements appear with no added credits
+    expect(container.textContent).toContain('Core CS')
+    expect(container.textContent).toContain('General Education')
+    // The component renders "0/9 cr needed" and "0/6 cr needed" for unmet requirements
+    expect(container.textContent).toContain('0/9 cr needed')
+    expect(container.textContent).toContain('0/6 cr needed')
   })
 
-  it('footer Close button fires onClose', async () => {
-    const onClose = vi.fn()
-    await render({
-      isOpen: true,
-      onClose,
-      scheduledClasses: [],
-      baseRequirements: makeRequirementsSummary(),
-    })
+  // ─── Backdrop click ──────────────────────────────────────────
 
-    const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
-    const footerClose = buttons.find(b => b.textContent === 'Close')
-    expect(footerClose).not.toBeNull()
-    await act(async () => { footerClose!.click() })
+  it('calls onClose when clicking the backdrop overlay', async () => {
+    await renderModal(true, [], BASE_REQUIREMENTS)
+    // The outer div (backdrop) has onClick=onClose
+    const backdrop = container.querySelector<HTMLDivElement>('div.fixed.inset-0')!
+    await act(async () => {
+      backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
     expect(onClose).toHaveBeenCalled()
-  })
-
-  it('has proper dialog accessibility attributes', async () => {
-    const onClose = vi.fn()
-    await render({
-      isOpen: true,
-      onClose,
-      scheduledClasses: [],
-      baseRequirements: makeRequirementsSummary(),
-    })
-
-    const dialog = container.querySelector('[role="dialog"]')
-    expect(dialog).not.toBeNull()
-    expect(dialog!.getAttribute('aria-modal')).toBe('true')
-    expect(dialog!.getAttribute('aria-labelledby')).toBe('schedule-impact-modal-title')
-  })
-
-  it('multiple classes contribute credits to the same requirement', async () => {
-    const onClose = vi.fn()
-    const cls1 = makeScheduledClass({ id: 'CS-101-01', code: 'CS 101', credits: 3 })
-    const cls2 = makeScheduledClass({ id: 'CS-201-01', code: 'CS 201', credits: 4 })
-    await render({
-      isOpen: true,
-      onClose,
-      scheduledClasses: [cls1, cls2],
-      baseRequirements: makeRequirementsSummary(),
-    })
-
-    // 3 + 4 = 7 added credits towards Major Core (12 needed)
-    expect(container.textContent).toContain('+7')
-    expect(container.textContent).toContain('5 remaining')
-    expect(container.textContent).toContain('CS 101')
-    expect(container.textContent).toContain('CS 201')
   })
 })

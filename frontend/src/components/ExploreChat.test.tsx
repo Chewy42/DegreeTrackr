@@ -240,6 +240,62 @@ describe('ExploreChat', () => {
     expect(container.textContent).toContain('Great question!')
   })
 
+  // ── Integration: full session flow (DT86) ────────────────────────────────
+
+  it('full session: typed message + Enter submit → user message and bot reply appear', async () => {
+    const onSessionChange = vi.fn()
+    await render(null, onSessionChange)
+
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Message to AI advisor"]')!
+    const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+
+    // Type a course question
+    await act(async () => {
+      nativeValueSetter?.call(input, 'What courses should I take next semester?')
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+
+    // Submit via Enter (form submit)
+    const form = container.querySelector('form')!
+    await act(async () => {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    })
+
+    // Verify the send function was called with the typed message
+    expect(mocks.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ jwt: 'test-jwt', message: 'What courses should I take next semester?' }),
+    )
+
+    // After resolve, SEND_RESULT messages are rendered (user + assistant)
+    expect(container.textContent).toContain('What can I do with my major?') // from SEND_RESULT
+    expect(container.textContent).toContain('Great question!')
+  })
+
+  it('chat history persists: session id is set and onSessionChange fires after first message', async () => {
+    const onSessionChange = vi.fn()
+    await render(null, onSessionChange)
+
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Message to AI advisor"]')!
+    const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+
+    await act(async () => {
+      nativeValueSetter?.call(input, 'Am I on track to graduate?')
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+
+    const sendBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')!
+    await act(async () => { sendBtn.click() })
+
+    // Session id from SEND_RESULT should be propagated
+    expect(onSessionChange).toHaveBeenCalledWith('session-1')
+    // The session id is non-null (verifying the contract)
+    expect(onSessionChange.mock.calls[0][0]).not.toBeNull()
+
+    // Follow-up suggestions from SEND_RESULT should be rendered (proves session is active)
+    expect(container.textContent).toContain('Tell me more')
+    expect(container.textContent).toContain('What about grad school?')
+  })
+
   // ── Mobile 375px responsive ─────────────────────────────────────────────
 
   it('message bubbles have break-words and overflow-hidden for 375px safety', async () => {

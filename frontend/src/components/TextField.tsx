@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 type TextFieldProps = {
         label: string;
@@ -10,6 +10,7 @@ type TextFieldProps = {
         required?: boolean;
         leftIcon?: React.ReactNode;
         pattern?: string;
+        error?: string;
 };
 
 export default function TextField({
@@ -22,10 +23,12 @@ export default function TextField({
         required,
         leftIcon,
         pattern,
+        error,
 }: TextFieldProps) {
         const inputType = type === 'email' ? 'text' : type;
         const inputMode = type === 'email' ? 'email' : undefined;
-        
+        const errorId = useId();
+
         return (
                 <label className={'block'}>
                         <div className={'flex items-baseline justify-between mb-1.5'}>
@@ -50,8 +53,16 @@ export default function TextField({
                                         autoComplete={autoComplete}
                                         required={required}
                                         pattern={pattern}
+                                        aria-required={required ? true : undefined}
+                                        aria-invalid={error ? true : undefined}
+                                        aria-describedby={error ? errorId : undefined}
                                 />
                         </div>
+                        {error ? (
+                                <p id={errorId} className={'mt-1.5 text-[0.7rem] text-danger'}>
+                                        {error}
+                                </p>
+                        ) : null}
                 </label>
         );
 }

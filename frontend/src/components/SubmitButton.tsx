@@ -12,6 +12,7 @@ export default function SubmitButton({ loading, children, onClick }: SubmitButto
 			type="submit"
 			disabled={!!loading}
 			aria-busy={loading ? true : undefined}
+			aria-disabled={loading ? true : undefined}
 			onClick={onClick}
 			className={
 				'inline-flex w-full items-center justify-center rounded-xl bg-primary text-primary-contrast text-sm font-semibold py-3.5 px-4 shadow-md transition-all duration-200 ease-out ' +

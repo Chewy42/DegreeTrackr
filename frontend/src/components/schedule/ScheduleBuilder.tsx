@@ -123,13 +123,20 @@ export default function ScheduleBuilder() {
     void loadRequirements();
   }, [jwt]);
 
-  // Derived state for quick lookups
-  const addedClassIds = new Set(scheduledClasses.map(c => c.id));
-  const conflictMap = validation.conflicts.reduce((acc, c) => {
-    acc[c.classId1] = c.message;
-    acc[c.classId2] = c.message;
-    return acc;
-  }, {} as Record<string, string>);
+  // Derived state for quick lookups — memoised to avoid re-rendering ClassSearchSidebar
+  // on every keystroke/state change unrelated to schedule composition
+  const addedClassIds = React.useMemo(
+    () => new Set(scheduledClasses.map(c => c.id)),
+    [scheduledClasses],
+  );
+  const conflictMap = React.useMemo(
+    () => validation.conflicts.reduce((acc, c) => {
+      acc[c.classId1] = c.message;
+      acc[c.classId2] = c.message;
+      return acc;
+    }, {} as Record<string, string>),
+    [validation.conflicts],
+  );
 
   // Validate whenever classes change using local schedule data.
   useEffect(() => {

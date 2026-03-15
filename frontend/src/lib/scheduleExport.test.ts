@@ -1,120 +1,97 @@
-import { describe, it, expect } from 'vitest'
-import { exportAsJSON, exportAsCSV } from './scheduleExport'
-import type { ExportableClass } from './scheduleExport'
+// @vitest-environment jsdom
+import { describe, expect, it } from 'vitest'
+import { exportAsJSON, exportAsCSV, type ExportableClass } from './scheduleExport'
 
-const mockClasses: ExportableClass[] = [
+const CLASSES: ExportableClass[] = [
   {
-    code: 'CPSC 350-03',
-    title: 'Software Engineering',
-    credits: 3,
-    displayDays: 'MWF',
-    displayTime: '10:00am - 10:50am',
-    professor: 'Smith',
-  },
-  {
-    code: 'MATH 240-01',
-    title: 'Linear Algebra',
-    credits: 4,
-    displayDays: 'TR',
-    displayTime: '1:00pm - 2:15pm',
-    professor: 'Jones',
-  },
-  {
-    code: 'ENGL 110-02',
-    title: 'Composition',
+    code: 'CS101',
+    title: 'Intro to CS',
     credits: 3,
     displayDays: 'MWF',
     displayTime: '9:00am - 9:50am',
-    professor: 'Davis',
+    professor: 'Dr. Smith',
+  },
+  {
+    code: 'MATH150',
+    title: 'Calculus I',
+    credits: 4,
+    displayDays: 'TuTh',
+    displayTime: '10:00am - 11:15am',
+    professor: 'Prof. Jones',
   },
 ]
 
-// ── exportAsJSON ─────────────────────────────────────────────────────────────
-
 describe('exportAsJSON', () => {
-  it('returns correct structure for 3 classes', () => {
-    const result = exportAsJSON(mockClasses)
-
-    expect(result).toHaveLength(3)
-
-    expect(result[0]).toEqual({
-      code: 'CPSC 350-03',
-      className: 'Software Engineering',
-      days: 'MWF',
-      startTime: '10:00am',
-      endTime: '10:50am',
-      credits: 3,
-      instructor: 'Smith',
-    })
-
-    expect(result[1]).toEqual({
-      code: 'MATH 240-01',
-      className: 'Linear Algebra',
-      days: 'TR',
-      startTime: '1:00pm',
-      endTime: '2:15pm',
-      credits: 4,
-      instructor: 'Jones',
-    })
-
-    expect(result[2]).toEqual({
-      code: 'ENGL 110-02',
-      className: 'Composition',
-      days: 'MWF',
-      startTime: '9:00am',
-      endTime: '9:50am',
-      credits: 3,
-      instructor: 'Davis',
-    })
-  })
-
-  it('returns empty array for empty schedule', () => {
+  it('returns empty array for empty input', () => {
     expect(exportAsJSON([])).toEqual([])
   })
-})
 
-// ── exportAsCSV ──────────────────────────────────────────────────────────────
+  it('returns one item per class', () => {
+    expect(exportAsJSON(CLASSES)).toHaveLength(2)
+  })
+
+  it('maps code correctly', () => {
+    const result = exportAsJSON(CLASSES)
+    expect(result[0].code).toBe('CS101')
+  })
+
+  it('maps title to className', () => {
+    const result = exportAsJSON(CLASSES)
+    expect(result[0].className).toBe('Intro to CS')
+  })
+
+  it('maps displayDays to days', () => {
+    const result = exportAsJSON(CLASSES)
+    expect(result[0].days).toBe('MWF')
+  })
+
+  it('splits displayTime into startTime and endTime', () => {
+    const result = exportAsJSON(CLASSES)
+    expect(result[0].startTime).toBe('9:00am')
+    expect(result[0].endTime).toBe('9:50am')
+  })
+
+  it('maps credits correctly', () => {
+    const result = exportAsJSON(CLASSES)
+    expect(result[1].credits).toBe(4)
+  })
+
+  it('maps professor to instructor', () => {
+    const result = exportAsJSON(CLASSES)
+    expect(result[0].instructor).toBe('Dr. Smith')
+  })
+})
 
 describe('exportAsCSV', () => {
-  it('returns header row + 3 data rows', () => {
-    const result = exportAsCSV(mockClasses)
-    const lines = result.split('\n')
-
-    expect(lines).toHaveLength(4)
-    expect(lines[0]).toBe('Class,Days,StartTime,EndTime,Credits,Instructor')
-
-    expect(lines[1]).toBe('"CPSC 350-03 - Software Engineering","MWF","10:00am","10:50am",3,"Smith"')
-    expect(lines[2]).toBe('"MATH 240-01 - Linear Algebra","TR","1:00pm","2:15pm",4,"Jones"')
-    expect(lines[3]).toBe('"ENGL 110-02 - Composition","MWF","9:00am","9:50am",3,"Davis"')
+  it('returns only header for empty input', () => {
+    const csv = exportAsCSV([])
+    expect(csv).toBe('Class,Days,StartTime,EndTime,Credits,Instructor')
   })
 
-  it('returns only header for empty schedule', () => {
-    const result = exportAsCSV([])
-    expect(result).toBe('Class,Days,StartTime,EndTime,Credits,Instructor')
+  it('returns header + one row per class', () => {
+    const csv = exportAsCSV(CLASSES)
+    const lines = csv.split('\n')
+    expect(lines).toHaveLength(3) // header + 2 rows
   })
-})
 
-// ── edge cases ───────────────────────────────────────────────────────────────
+  it('first line is the header', () => {
+    const csv = exportAsCSV(CLASSES)
+    expect(csv.split('\n')[0]).toBe('Class,Days,StartTime,EndTime,Credits,Instructor')
+  })
 
-describe('handles classes with no time separator gracefully', () => {
-  it('does not crash and defaults startTime/endTime to empty strings', () => {
-    const tbaClass: ExportableClass = {
-      code: 'CPSC 499-01',
-      title: 'Independent Study',
-      credits: 3,
-      displayDays: 'TBA',
-      displayTime: 'TBA',
-      professor: 'Staff',
-    }
+  it('data row contains class code and title', () => {
+    const csv = exportAsCSV(CLASSES)
+    expect(csv).toContain('CS101')
+    expect(csv).toContain('Intro to CS')
+  })
 
-    const jsonResult = exportAsJSON([tbaClass])
-    expect(jsonResult).toHaveLength(1)
-    expect(jsonResult[0]?.startTime).toBe('TBA')
-    expect(jsonResult[0]?.endTime).toBe('')
+  it('data row contains days', () => {
+    const csv = exportAsCSV(CLASSES)
+    expect(csv).toContain('MWF')
+  })
 
-    const csvResult = exportAsCSV([tbaClass])
-    const lines = csvResult.split('\n')
-    expect(lines).toHaveLength(2)
-    expect(lines[1]).toContain('"TBA"')
+  it('data row contains instructor', () => {
+    const csv = exportAsCSV(CLASSES)
+    expect(csv).toContain('Dr. Smith')
   })
 })

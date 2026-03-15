@@ -28,5 +28,6 @@ export default defineConfig({
     port: clientPort,
     strictPort: true,
     allowedHosts
-  }
+  },
+
 })

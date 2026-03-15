@@ -343,4 +343,126 @@ describe('ScheduleBuilder', () => {
     expect(container.textContent).toContain('2')
     expect(container.textContent).toContain('Credits')
   })
+
+  // ── DT36 conflict resolution UX tests ────────────────────────────────────
+
+  it('adding an overlapping class triggers validateScheduledClassesLocally', async () => {
+    mocks.validateScheduledClassesLocally
+      .mockReturnValueOnce({ valid: true, conflicts: [], totalCredits: 3, warnings: [] })
+      .mockReturnValueOnce({ valid: false, conflicts: [{ classId1: 'CS-101-01', classId2: 'ENG-301-01', day: 'M', timeRange: '9:00 AM - 9:50 AM', message: 'CS 101 conflicts with ENG 301 on M.' }], totalCredits: 6, warnings: [] })
+
+    await render()
+    await act(async () => { sidebarProps!.onAddClass(CLASS_A) })
+    await act(async () => { sidebarProps!.onAddClass(CLASS_C) })
+
+    expect(mocks.validateScheduledClassesLocally).toHaveBeenCalledTimes(2)
+    expect(mocks.validateScheduledClassesLocally).toHaveBeenLastCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'CS-101-01' }),
+        expect.objectContaining({ id: 'ENG-301-01' }),
+      ])
+    )
+  })
+
+  it('conflict resolution panel shows conflict message and Remove buttons', async () => {
+    mocks.validateScheduledClassesLocally
+      .mockReturnValueOnce({ valid: true, conflicts: [], totalCredits: 3, warnings: [] })
+      .mockReturnValueOnce({
+        valid: false,
+        conflicts: [{
+          classId1: 'CS-101-01',
+          classId2: 'ENG-301-01',
+          day: 'M',
+          timeRange: '9:00 AM - 9:50 AM',
+          message: 'CS 101 conflicts with ENG 301 on M.',
+        }],
+        totalCredits: 6,
+        warnings: [],
+      })
+
+    await render()
+    await act(async () => { sidebarProps!.onAddClass(CLASS_A) })
+    await act(async () => { sidebarProps!.onAddClass(CLASS_C) })
+
+    // Conflict message is shown in the resolution panel
+    expect(container.textContent).toContain('CS 101 conflicts with ENG 301 on M.')
+
+    // Remove buttons for each conflicting class
+    const removeCsBtn = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(b =>
+      b.getAttribute('aria-label') === 'Remove CS 101'
+    )
+    const removeEngBtn = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(b =>
+      b.getAttribute('aria-label') === 'Remove ENG 301'
+    )
+    expect(removeCsBtn).not.toBeNull()
+    expect(removeEngBtn).not.toBeNull()
+  })
+
+  it('clicking Remove in conflict panel removes that class from the schedule', async () => {
+    mocks.validateScheduledClassesLocally
+      .mockReturnValueOnce({ valid: true, conflicts: [], totalCredits: 3, warnings: [] })
+      .mockReturnValueOnce({
+        valid: false,
+        conflicts: [{
+          classId1: 'CS-101-01',
+          classId2: 'ENG-301-01',
+          day: 'M',
+          timeRange: '9:00 AM - 9:50 AM',
+          message: 'CS 101 conflicts with ENG 301 on M.',
+        }],
+        totalCredits: 6,
+        warnings: [],
+      })
+      .mockReturnValueOnce({ valid: true, conflicts: [], totalCredits: 3, warnings: [] })
+
+    await render()
+    await act(async () => { sidebarProps!.onAddClass(CLASS_A) })
+    await act(async () => { sidebarProps!.onAddClass(CLASS_C) })
+
+    const removeCsBtn = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(b =>
+      b.getAttribute('aria-label') === 'Remove CS 101'
+    )
+    expect(removeCsBtn).not.toBeNull()
+
+    await act(async () => { removeCsBtn!.click() })
+
+    // CLASS_A should be removed; only CLASS_C remains
+    expect(calendarProps!.classes).toHaveLength(1)
+    expect(calendarProps!.classes[0]!.id).toBe('ENG-301-01')
+  })
+
+  it('resolving all conflicts clears the conflict indicators', async () => {
+    mocks.validateScheduledClassesLocally
+      .mockReturnValueOnce({ valid: true, conflicts: [], totalCredits: 3, warnings: [] })
+      .mockReturnValueOnce({
+        valid: false,
+        conflicts: [{
+          classId1: 'CS-101-01',
+          classId2: 'ENG-301-01',
+          day: 'M',
+          timeRange: '9:00 AM - 9:50 AM',
+          message: 'CS 101 conflicts with ENG 301 on M.',
+        }],
+        totalCredits: 6,
+        warnings: [],
+      })
+      .mockReturnValueOnce({ valid: true, conflicts: [], totalCredits: 3, warnings: [] })
+
+    await render()
+    await act(async () => { sidebarProps!.onAddClass(CLASS_A) })
+    await act(async () => { sidebarProps!.onAddClass(CLASS_C) })
+
+    // Conflict toolbar badge visible
+    expect(container.textContent).toContain('Conflict')
+
+    const removeCsBtn = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(b =>
+      b.getAttribute('aria-label') === 'Remove CS 101'
+    )
+    await act(async () => { removeCsBtn!.click() })
+
+    // Conflict badge + resolution panel should be gone
+    expect(container.textContent).not.toContain('Conflict')
+    // The conflict panel uses aria-live="polite"; the Convex warning uses aria-live="assertive"
+    expect(container.querySelector('[role="alert"][aria-live="polite"]')).toBeNull()
+  })
 })

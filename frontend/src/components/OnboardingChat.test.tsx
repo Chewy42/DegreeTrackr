@@ -164,4 +164,77 @@ describe('OnboardingChat', () => {
     // Index 2 = schedule_preference question
     expect(container.textContent).toContain('When do you prefer to take classes?')
   })
+
+  // ── DT35 edge-case tests ────────────────────────────────────────────────────
+
+  it('clears sessionStorage is cleared mid-session restarts from scratch on next mount', async () => {
+    // User answers 2 questions (live component writes to sessionStorage on each step)
+    await renderComponent()
+    await clickButton('Plan my next semester')   // step 0 → 1
+    await clickButton('Light (9-12 credits)')    // step 1 → 2
+
+    // Simulate session being cleared (e.g. browser clears storage between visits)
+    sessionStorage.clear()
+
+    // Unmount and remount
+    await act(async () => { root.unmount() })
+    root = createRoot(container)
+    await renderComponent()
+
+    // With no saved state, should restart at question 0
+    expect(container.textContent).toContain('What would you like to focus on today?')
+  })
+
+  it('mutation error shows error message and leaves option buttons interactive', async () => {
+    mocks.completeOnboarding.mockRejectedValueOnce(new Error('Network failure'))
+
+    await renderComponent()
+    await clickButton('Plan my next semester')
+    await clickButton('Light (9-12 credits)')
+    await clickButton('Mornings')
+    await clickButton('Part-time job')
+    await clickButton('Complete major requirements')
+
+    // Error message must be visible
+    const alert = container.querySelector('[role="alert"]')
+    expect(alert).not.toBeNull()
+    expect(alert!.textContent).toContain('Something went wrong saving your preferences')
+
+    // Option buttons must not be disabled — user can retry by clicking another answer
+    const optionButtons = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).filter(b =>
+      ['Explore electives', 'Graduate on time'].some(t => b.textContent?.includes(t))
+    )
+    expect(optionButtons.length).toBeGreaterThan(0)
+    optionButtons.forEach(btn => {
+      expect(btn.disabled).toBe(false)
+    })
+  })
+
+  it('calls mergePreferences with onboardingComplete:true after successful completion', async () => {
+    await renderComponent()
+    await clickButton('Plan my next semester')
+    await clickButton('Standard (12-15 credits)')
+    await clickButton('Mornings')
+    await clickButton('Part-time job')
+    await clickButton('Complete major requirements')
+
+    expect(mocks.mergePreferences).toHaveBeenCalledWith({ onboardingComplete: true })
+  })
+
+  it('after 3 answers remounting shows the 4th question (network-disconnect scenario)', async () => {
+    // Directly seed sessionStorage as if the user completed 3 questions then disconnected
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+      index: 3,
+      answers: {
+        planning_mode: 'upcoming_semester',
+        credit_load: 'standard',
+        schedule_preference: 'mornings',
+      },
+    }))
+
+    await renderComponent()
+
+    // Index 3 = work_status question
+    expect(container.textContent).toContain('Do you have any work commitments?')
+  })
 })

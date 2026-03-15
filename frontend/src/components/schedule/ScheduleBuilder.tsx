@@ -534,6 +534,48 @@ export default function ScheduleBuilder() {
           </div>
         </div>
 
+        {/* Conflict Resolution Panel */}
+        {!validation.valid && validation.conflicts.length > 0 && (
+          <div
+            role="alert"
+            aria-live="polite"
+            className="bg-red-50 border-b border-red-200 px-6 py-2 shrink-0"
+          >
+            <ul className="flex flex-col gap-1">
+              {validation.conflicts.map((conflict, i) => {
+                const cls1 = scheduledClasses.find(c => c.id === conflict.classId1);
+                const cls2 = scheduledClasses.find(c => c.id === conflict.classId2);
+                return (
+                  <li key={i} className="flex flex-wrap items-center gap-2 text-sm text-red-700">
+                    <FiAlertTriangle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                    <span className="flex-1 truncate min-w-0">{conflict.message}</span>
+                    {cls1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveClass(conflict.classId1)}
+                        className="shrink-0 text-xs font-medium text-red-600 hover:text-red-800 border border-red-300 hover:bg-red-100 rounded px-2 py-0.5 transition-colors"
+                        aria-label={`Remove ${cls1.code}`}
+                      >
+                        Remove {cls1.code}
+                      </button>
+                    )}
+                    {cls2 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveClass(conflict.classId2)}
+                        className="shrink-0 text-xs font-medium text-red-600 hover:text-red-800 border border-red-300 hover:bg-red-100 rounded px-2 py-0.5 transition-colors"
+                        aria-label={`Remove ${cls2.code}`}
+                      >
+                        Remove {cls2.code}
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
 	        {/* Calendar View */}
 	        <div className="flex-1 relative min-h-0">
           <WeeklyCalendar

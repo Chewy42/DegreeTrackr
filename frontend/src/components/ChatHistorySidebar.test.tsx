@@ -245,4 +245,100 @@ describe('ChatHistorySidebar', () => {
     expect(container.textContent).toContain('What can I do with CS?')
     expect(container.textContent).not.toContain('Career paths in biology')
   })
+
+  // --- Session list ordering & lifecycle integration ---
+
+  it('renders sessions in the order returned by the API (newest first)', async () => {
+    const SORTED_SESSIONS = [
+      {
+        _id: 'session-new',
+        title: 'Latest chat',
+        scope: 'explore' as const,
+        lastMessageAt: null,
+        createdAt: new Date('2025-02-01').getTime(),
+      },
+      {
+        _id: 'session-mid',
+        title: 'Middle chat',
+        scope: 'explore' as const,
+        lastMessageAt: null,
+        createdAt: new Date('2025-01-20').getTime(),
+      },
+      {
+        _id: 'session-old',
+        title: 'Oldest chat',
+        scope: 'explore' as const,
+        lastMessageAt: null,
+        createdAt: new Date('2025-01-01').getTime(),
+      },
+    ]
+    mocks.listSessions.mockResolvedValue(SORTED_SESSIONS)
+    await render()
+
+    const items = Array.from(container.querySelectorAll('ul li'))
+    expect(items).toHaveLength(3)
+    expect(items[0].textContent).toContain('Latest chat')
+    expect(items[1].textContent).toContain('Middle chat')
+    expect(items[2].textContent).toContain('Oldest chat')
+  })
+
+  it('picks up a newly created session when the list refreshes', async () => {
+    await render()
+    expect(container.querySelectorAll('ul li')).toHaveLength(2)
+
+    const WITH_NEW_SESSION = [
+      {
+        _id: 'session-new',
+        title: 'Brand new chat',
+        scope: 'explore' as const,
+        lastMessageAt: null,
+        createdAt: new Date('2025-02-01').getTime(),
+      },
+      ...SESSIONS,
+    ]
+    mocks.listSessions.mockResolvedValue(WITH_NEW_SESSION)
+
+    // Click refresh button to trigger re-fetch
+    const refreshBtn = container.querySelector<HTMLButtonElement>('button[title="Refresh history"]')!
+    await act(async () => { refreshBtn.click() })
+
+    expect(container.querySelectorAll('ul li')).toHaveLength(3)
+    const items = Array.from(container.querySelectorAll('ul li'))
+    expect(items[0].textContent).toContain('Brand new chat')
+  })
+
+  it('selects a session via Enter key and applies the active state', async () => {
+    const onSelectSession = vi.fn()
+    await render({ onSelectSession })
+    const sessionItems = Array.from(container.querySelectorAll<HTMLElement>('[role="button"]'))
+    const target = sessionItems.find(el => el.textContent?.includes('Career paths in biology'))!
+
+    await act(async () => {
+      target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+    expect(onSelectSession).toHaveBeenCalledWith('session-def')
+  })
+
+  it('full lifecycle: list → select → delete → list updates', async () => {
+    const onSelectSession = vi.fn()
+    await render({ onSelectSession, currentSessionId: 'session-abc' })
+
+    // Verify initial list
+    expect(container.querySelectorAll('ul li')).toHaveLength(2)
+
+    // Select the second session
+    const sessionItems = Array.from(container.querySelectorAll<HTMLElement>('[role="button"]'))
+    const secondSession = sessionItems.find(el => el.textContent?.includes('Career paths in biology'))!
+    await act(async () => { secondSession.click() })
+    expect(onSelectSession).toHaveBeenCalledWith('session-def')
+
+    // Delete the first session (the active one)
+    const deleteBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Delete session"]')!
+    await act(async () => { deleteBtn.click() })
+    expect(mocks.deleteSession).toHaveBeenCalledWith('session-abc')
+    expect(onSelectSession).toHaveBeenCalledWith(null)
+    expect(container.querySelectorAll('ul li')).toHaveLength(1)
+    expect(container.textContent).toContain('Career paths in biology')
+    expect(container.textContent).not.toContain('What can I do with CS?')
+  })
 })

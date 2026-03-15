@@ -148,6 +148,16 @@ export default function OnboardingChat() {
     }
   };
 
+  const handleSkip = () => {
+    handleFinish({
+      planning_mode: "upcoming_semester",
+      credit_load: "standard",
+      schedule_preference: "flexible",
+      work_status: "none",
+      priority: "major",
+    });
+  };
+
   const handleReset = () => {
     if (!window.confirm("Start over? This will reset your answers.")) {
       return;
@@ -268,6 +278,14 @@ export default function OnboardingChat() {
                 <FiUploadCloud className="text-lg" aria-hidden="true" />
                 New Evaluation
               </button>
+              <button
+                type="button"
+                onClick={handleSkip}
+                disabled={loading}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Skip for now
+              </button>
             </div>
           </div>
 
@@ -380,6 +398,15 @@ export default function OnboardingChat() {
           >
             <FiUploadCloud className="text-lg" aria-hidden="true" />
             New Evaluation
+          </button>
+          <div className="h-5 w-px bg-slate-300" aria-hidden="true" />
+          <button
+            type="button"
+            onClick={handleSkip}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-4 min-h-[44px] text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-50"
+          >
+            Skip for now
           </button>
         </div>
       </div>

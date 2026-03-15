@@ -1,5 +1,9 @@
 # Build Output — DegreeTrackr Frontend
 
+## Wave 14 Summary (2026-03-15)
+- Build: PASS (CI=true, 0 TS errors)
+- Wave 14 additions: DT140 userState, DT141 undo/redo, DT142 degree audit, DT143 13+14 final, DT144 chat persist, DT145 GPA weighted, DT146 onboarding skip, DT147 this final
+
 ## Wave 13+14 Extended Summary (2026-03-14)
 - Build: PASS (CI=true, 0 TS errors)
 - Wave 13+14 additions: DT130-DT147 coverage (auth edge cases, regression, schema validation, error boundary, schedule diff, requirements %, chat format, a11y sweep, perf budget, userState, undo/redo, degree audit, this final)

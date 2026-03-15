@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 interface DegreeProgressCardProps {
   progress: number;
@@ -6,6 +6,7 @@ interface DegreeProgressCardProps {
   earnedCredits: number;
   inProgressCredits: number;
   hasEvaluation?: boolean;
+  programName?: string;
 }
 
 export default function DegreeProgressCard({
@@ -14,7 +15,34 @@ export default function DegreeProgressCard({
   earnedCredits,
   inProgressCredits,
   hasEvaluation = true,
+  programName,
 }: DegreeProgressCardProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const handleExport = () => {
+    const lines = [
+      programName ? `Program: ${programName}` : "Degree Progress Summary",
+      `Completion: ${progress}%`,
+      `Earned Credits: ${earnedCredits.toFixed(1)}`,
+      `In Progress Credits: ${inProgressCredits.toFixed(1)}`,
+      `Total Required Credits: ${totalCredits.toFixed(1)}`,
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "degree-progress.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (!hasEvaluation) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
@@ -50,9 +78,9 @@ export default function DegreeProgressCard({
   };
 
   const progressColor = getProgressColor(progress);
-	const inProgressPercent = totalCredits > 0 ? (inProgressCredits / totalCredits) * 100 : 0;
-	const totalProgressPercent = Math.min(progress + inProgressPercent, 100);
-	const earnedShare = totalProgressPercent > 0 ? (progress / totalProgressPercent) * 100 : 100;
+  const inProgressPercent = totalCredits > 0 ? (inProgressCredits / totalCredits) * 100 : 0;
+  const totalProgressPercent = Math.min(progress + inProgressPercent, 100);
+  const earnedShare = totalProgressPercent > 0 ? (progress / totalProgressPercent) * 100 : 100;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-all duration-300 group">
@@ -135,8 +163,8 @@ export default function DegreeProgressCard({
           <div
             className="h-full rounded-full transition-all duration-1000 ease-out"
             style={{
-	              width: `${totalProgressPercent}%`,
-	              background: `linear-gradient(90deg, ${progressColor} ${earnedShare}%, #93c5fd ${earnedShare}%)`,
+              width: `${totalProgressPercent}%`,
+              background: `linear-gradient(90deg, ${progressColor} ${earnedShare}%, #93c5fd ${earnedShare}%)`,
             }}
           />
         </div>
@@ -145,6 +173,24 @@ export default function DegreeProgressCard({
           <span>50%</span>
           <span>100%</span>
         </div>
+      </div>
+
+      {/* Actions */}
+      <div className="mt-3 pt-3 border-t border-slate-100 flex gap-2">
+        <button
+          type="button"
+          onClick={handleCopyLink}
+          className="flex-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-lg py-1.5 transition-colors duration-150"
+        >
+          {copied ? "Copied!" : "Copy share link"}
+        </button>
+        <button
+          type="button"
+          onClick={handleExport}
+          className="flex-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-lg py-1.5 transition-colors duration-150"
+        >
+          Export summary
+        </button>
       </div>
     </div>
   );

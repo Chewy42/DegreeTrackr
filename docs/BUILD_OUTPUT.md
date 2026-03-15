@@ -164,3 +164,8 @@
 - **Build**: PASS (1.31s, CI=true, 0 TS errors)
 - **Test files**: 78
 - **Wave 23 additions**: DT189 ConvexErrorBoundary, DT190 CourseHistoryTimeline, DT191-DT192 pending
+
+## Wave 23 Extended (2026-03-15)
+- **Build**: PASS (CI=true, 0 TS errors)
+- **Test files**: $(find frontend/src/tests frontend/e2e -name "*.test.*" -o -name "*.spec.*" 2>/dev/null | wc -l | tr -d " ")
+- **Additions**: DT191 WeeklyCalendarHeader, DT192 contracts validation

@@ -134,3 +134,7 @@
 ## Wave 19 Summary (2026-03-15)
 - **Build**: PASS (1.33s, CI=true, 0 TS errors)
 - **Wave 19 additions**: DT168 degree checklist, DT169 schedule export roundtrip, DT170 this final
+
+## Wave 20 Summary (2026-03-15)
+- **Build**: PASS (1.41s, CI=true, 0 TS errors)
+- **Wave 20 additions**: DT171 course search/filter/sort, DT172 this final

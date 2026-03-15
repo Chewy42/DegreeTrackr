@@ -124,6 +124,13 @@ export interface OnboardingFlowState {
   isComplete: boolean
 }
 
+export interface CourseSubstitution {
+  originalCourse: string
+  substituteCourse: string
+  approvedBy?: string
+  approvedAt?: number
+}
+
 export interface ScheduleSnapshotRecord {
   id: string
   userId: string

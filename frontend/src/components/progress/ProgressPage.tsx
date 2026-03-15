@@ -14,6 +14,7 @@ import RequirementsChecklist from "./RequirementsChecklist";
 import CourseHistoryTimeline from "./CourseHistoryTimeline";
 import UpcomingMilestones from "./UpcomingMilestones";
 import { FiRefreshCw, FiAlertCircle } from "react-icons/fi";
+import { deduplicateCourses, findPrimaryRequirement, calculateOverallProgress } from "../../lib/progressUtils";
 
 // Types for parsed program evaluation data
 export interface StudentInfo {
@@ -141,29 +142,20 @@ export default function ProgressPage() {
   const courses = parsed?.courses;
   const creditRequirements = parsed?.credit_requirements || [];
 
-  // Calculate overall progress from the primary "Degree credit"-style requirement
-  // Other requirements (Residency, Upper Division, GE areas, etc.) overlap with Degree credit,
-  // so we identify a single primary requirement to avoid double-counting aggregate credits.
-  //
-  // Heuristic:
-  //   1. Prefer an item whose label mentions "Degree credit" (or similar), if present
-  //   2. Otherwise, fall back to the requirement with the largest `required` value
-  //      (overall program credit requirement is almost always the maximum).
-  let primaryRequirement: CreditRequirement | undefined = creditRequirements.find(
-    (req) => req.label.toLowerCase().includes("degree credit")
-  );
+  // Deduplicate completed courses (retakes → keep best grade only)
+  const dedupedCourses = courses ? {
+    all_found: deduplicateCourses(courses.all_found),
+    in_progress: courses.in_progress,
+    completed: deduplicateCourses(courses.completed),
+  } : undefined;
 
-  if (!primaryRequirement && creditRequirements.length > 0) {
-    primaryRequirement = creditRequirements.reduce<CreditRequirement | undefined>((max, req) => {
-      if (!max) return req;
-      return req.required > max.required ? req : max;
-    }, undefined);
-  }
+  // Identify primary degree-level requirement and calculate progress (capped at 100%)
+  const primaryRequirement = findPrimaryRequirement(creditRequirements);
   const totalRequired = primaryRequirement?.required ?? 0;
   const totalEarned = primaryRequirement?.earned ?? 0;
   const totalInProgress = primaryRequirement?.in_progress ?? 0;
   const totalNeeded = primaryRequirement?.needed ?? 0;
-  const overallProgress = totalRequired > 0 ? Math.round((totalEarned / totalRequired) * 100) : 0;
+  const overallProgress = calculateOverallProgress(totalEarned, totalRequired);
 
   if (loadState === "loading" || loadState === "idle") {
     return (
@@ -280,19 +272,19 @@ export default function ProgressPage() {
           needed={totalNeeded}
           requirements={creditRequirements}
         />
-        <GPATrendChart courses={courses?.completed || []} />
+        <GPATrendChart courses={dedupedCourses?.completed || []} />
       </div>
 
       {/* Requirements and Timeline */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RequirementsChecklist requirements={creditRequirements} />
-        <CourseHistoryTimeline courses={courses?.all_found || []} />
+        <CourseHistoryTimeline courses={dedupedCourses?.all_found || []} />
       </div>
 
       {/* Milestones */}
       <UpcomingMilestones
         creditRequirements={creditRequirements}
-        courses={courses}
+        courses={dedupedCourses}
         studentInfo={studentInfo}
       />
     </div>

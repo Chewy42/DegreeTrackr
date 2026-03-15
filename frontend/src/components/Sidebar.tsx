@@ -67,7 +67,7 @@ export default function Sidebar() {
           <FiMenu className="text-[20px]" aria-hidden="true" />
         </button>
       </div>
-      <nav className="flex flex-1 flex-col gap-1 py-4">
+      <nav aria-label="Main navigation" className="flex flex-1 flex-col gap-1 py-4">
         {navItems.map((item) => {
           const isActive =
             item.to === "/"

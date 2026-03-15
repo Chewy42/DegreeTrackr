@@ -84,7 +84,7 @@ export default function DegreeProgressCard({
 
   return (
     <div className="bg-surface rounded-2xl border border-border-subtle p-5 shadow-sm hover:shadow-md transition-all duration-300 group">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-center gap-4">
         {/* Circular Progress */}
         <div className="relative flex-shrink-0">
           <svg
@@ -131,7 +131,7 @@ export default function DegreeProgressCard({
         </div>
 
         {/* Stats */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 w-full sm:w-auto">
           <h3 className="text-sm font-semibold text-text-primary mb-2">Degree Progress</h3>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">

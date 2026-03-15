@@ -225,11 +225,11 @@ function WeeklyCalendar({ classes, onRemoveClass, conflicts = {}, onSlotClick }:
                                 </button>
 
                                 {/* Content - Vertically Centered */}
-                                <div className="flex flex-col justify-center items-center h-full gap-0.5 text-center">
-                                    <span className={`font-bold text-sm leading-tight${conflictMsg ? ' text-red-800' : ' text-slate-900'}`}>
+                                <div className="flex flex-col justify-center items-center h-full gap-0.5 text-center min-w-0 overflow-hidden">
+                                    <span className={`font-bold text-sm leading-tight truncate w-full${conflictMsg ? ' text-red-800' : ' text-slate-900'}`}>
                                         {cls.code}
                                     </span>
-                                    <div className={`text-xs font-medium leading-tight${conflictMsg ? ' text-red-700' : ' text-slate-700'}`}>
+                                    <div className={`text-xs font-medium leading-tight truncate w-full${conflictMsg ? ' text-red-700' : ' text-slate-700'}`}>
                                         {minutesToTime(startMinutes)} - {minutesToTime(endMinutes)}
                                     </div>
                                     <div className={`text-xs truncate w-full px-1${conflictMsg ? ' text-red-600' : ' text-slate-600'}`}>

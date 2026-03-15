@@ -240,6 +240,48 @@ describe('ExploreChat', () => {
     expect(container.textContent).toContain('Great question!')
   })
 
+  // ── Mobile 375px responsive ─────────────────────────────────────────────
+
+  it('message bubbles have break-words and overflow-hidden for 375px safety', async () => {
+    mocks.sendMessage.mockResolvedValueOnce(SEND_RESULT)
+    await render()
+    const suggestionBtn = getBtn('What can I do with my major?')!
+    await act(async () => { suggestionBtn.click() })
+
+    const bubbles = Array.from(container.querySelectorAll('[class*="max-w-"]'))
+      .filter(el => el.className.includes('rounded-2xl'))
+    expect(bubbles.length).toBeGreaterThan(0)
+    for (const bubble of bubbles) {
+      expect(bubble.className).toContain('break-words')
+      expect(bubble.className).toContain('overflow-hidden')
+      expect(bubble.className).toContain('min-w-0')
+    }
+  })
+
+  it('send button meets 44px minimum touch target', async () => {
+    await render()
+    const sendBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')!
+    expect(sendBtn.className).toContain('min-h-[44px]')
+    expect(sendBtn.className).toContain('min-w-[44px]')
+  })
+
+  it('suggestion pills meet 44px minimum touch target height', async () => {
+    await render()
+    const pills = Array.from(container.querySelectorAll('button')).filter(b =>
+      b.className.includes('rounded-full') && b.className.includes('bg-brand-50'),
+    )
+    expect(pills.length).toBeGreaterThan(0)
+    for (const pill of pills) {
+      expect(pill.className).toContain('min-h-[44px]')
+    }
+  })
+
+  it('input has min-w-0 to prevent flex overflow', async () => {
+    await render()
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Message to AI advisor"]')!
+    expect(input.className).toContain('min-w-0')
+  })
+
   // ── Dark mode ─────────────────────────────────────────────────────────────
 
   it('renders without hard-coded bg-white class in dark theme', async () => {

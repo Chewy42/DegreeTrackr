@@ -236,7 +236,7 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
             }`}
           >
             <div
-              className={`max-w-[85%] lg:max-w-[75%] rounded-2xl px-5 py-3.5 text-sm leading-relaxed shadow-sm ${
+              className={`max-w-[85%] lg:max-w-[75%] min-w-0 rounded-2xl px-5 py-3.5 text-sm leading-relaxed shadow-sm break-words overflow-hidden ${
                 msg.role === "user"
                   ? "bg-gradient-to-r from-brand-600 to-brand-500 text-white rounded-br-none"
                   : "bg-surface border border-border-subtle text-text-primary rounded-bl-none"
@@ -244,7 +244,7 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
             >
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]}
-                className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5"
+                className="prose prose-sm max-w-none overflow-hidden break-words prose-p:my-1 prose-ul:my-1 prose-li:my-0.5"
                 components={{
                   p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
                   a: ({node, ...props}) => <a className="text-brand-500 hover:underline" {...props} />,
@@ -293,7 +293,7 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
                 key={i}
                 type="button"
                 onClick={() => handleSend(undefined, s)}
-                className="text-xs bg-brand-50 text-brand-700 px-3 py-1.5 rounded-full hover:bg-brand-100 transition-colors border border-brand-100"
+                className="text-xs bg-brand-50 text-brand-700 px-3 py-2.5 min-h-[44px] rounded-full hover:bg-brand-100 transition-colors border border-brand-100"
               >
                 {s}
               </button>
@@ -312,14 +312,14 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about your academic journey..."
             aria-label="Message to AI advisor"
-	            className="flex-1 bg-transparent border-none outline-none focus:outline-none focus-visible:outline-none focus:ring-0 text-sm text-text-primary placeholder:text-text-secondary px-2"
+	            className="flex-1 min-w-0 bg-transparent border-none outline-none focus:outline-none focus-visible:outline-none focus:ring-0 text-sm text-text-primary placeholder:text-text-secondary px-2"
             disabled={loading}
           />
           <button
             type="submit"
             disabled={!input.trim() || loading}
             aria-label="Send message"
-            className="p-2 bg-gradient-to-r from-brand-600 to-brand-500 text-white rounded-lg hover:from-brand-600 hover:to-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+            className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center bg-gradient-to-r from-brand-600 to-brand-500 text-white rounded-lg hover:from-brand-600 hover:to-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
             <FiSend className="h-4 w-4" aria-hidden="true" />
           </button>

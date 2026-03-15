@@ -263,6 +263,28 @@ describe('WeeklyCalendar', () => {
     expect(classBlock!.tabIndex).toBe(0)
   })
 
+  // ── Mobile 375px responsive ─────────────────────────────────────────────
+
+  it('calendar body has min-w for horizontal scroll on narrow screens', async () => {
+    await renderCalendar([])
+    const minWDiv = container.querySelector('[class*="min-w-[600px]"]')
+    expect(minWDiv).not.toBeNull()
+  })
+
+  it('scroll container has overflow-auto for mobile scroll', async () => {
+    await renderCalendar([])
+    const scrollDiv = container.querySelector('[class*="overflow-auto"]')
+    expect(scrollDiv).not.toBeNull()
+  })
+
+  it('class block text has truncate and min-w-0 to prevent overflow', async () => {
+    await renderCalendar([CLASS_A])
+    // The inner content div of a class block
+    const classBlocks = Array.from(container.querySelectorAll('[class*="min-w-0"][class*="overflow-hidden"]'))
+      .filter(el => el.className.includes('flex-col') && el.className.includes('justify-center'))
+    expect(classBlocks.length).toBeGreaterThan(0)
+  })
+
   // ── Dark mode ─────────────────────────────────────────────────────────────
 
   it('renders without hard-coded bg-white class in dark theme', async () => {

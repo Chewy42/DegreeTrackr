@@ -112,6 +112,24 @@ describe('DegreeProgressCard', () => {
     expect(markup).toContain('Complete')
   })
 
+  // ── Mobile 375px responsive ──────────────────────────────────────────────
+
+  it('card layout stacks vertically on narrow screens via sm:flex-row', () => {
+    const markup = renderToStaticMarkup(
+      <DegreeProgressCard progress={72} totalCredits={120} earnedCredits={86.4} inProgressCredits={3} />,
+    )
+    // Main flex container uses flex-col sm:flex-row for mobile stacking
+    expect(markup).toContain('flex-col')
+    expect(markup).toContain('sm:flex-row')
+  })
+
+  it('stats div has min-w-0 to prevent overflow on narrow screens', () => {
+    const markup = renderToStaticMarkup(
+      <DegreeProgressCard progress={72} totalCredits={120} earnedCredits={86.4} inProgressCredits={3} />,
+    )
+    expect(markup).toContain('min-w-0')
+  })
+
   // ── Dark mode ──────────────────────────────────────────────────────────────
 
   it('renders without hard-coded bg-white class in dark theme', () => {

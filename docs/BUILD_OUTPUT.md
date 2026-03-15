@@ -1,5 +1,9 @@
 # Build Output — DegreeTrackr Frontend
 
+## Wave 20 Summary (2026-03-15)
+- Build: PASS (CI=true)
+- Wave 20 additions: DT171 course search/filter, DT172 this final
+
 ## Wave 20 Extended Summary (2026-03-15)
 - Build: PASS (1.25s, CI=true, 0 TS errors)
 - Wave 20 extended additions: DT173 RequirementItem card tests (name/credits/complete/in-progress/not-started), DT174 this final

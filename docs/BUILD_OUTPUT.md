@@ -174,3 +174,8 @@
 - **Build**: PASS (1.31s, CI=true, 0 TS errors)
 - **Test files**: 82
 - **Recent additions**: AuthTabs, apiClient (DT194+DT195)
+
+## Wave 25 Complete (2026-03-15 05:44 AM)
+- **Build**: PASS (1.33s, CI=true, 0 TS errors)
+- **Test files**: 152
+- **Wave 25 additions**: DT209 AuthForm+AuthInput, DT210 ErrorBoundary, DT211 LoadingScreen, DT212 AuthenticatedScreen, DT213 Sidebar, DT214 sanitize, DT215 chatPagination, DT216 runtimeConfig, DT217 SettingsPage, DT218 = this entry

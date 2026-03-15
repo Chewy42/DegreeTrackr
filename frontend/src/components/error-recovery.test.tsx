@@ -13,6 +13,10 @@ const progressMocks = vi.hoisted(() => ({
   getConvexClient: vi.fn(),
   convexApi: {
     evaluations: { getCurrentProgramEvaluation: 'evaluations:getCurrentProgramEvaluation' },
+    draftSchedule: {
+      getDraftSchedule: 'draftSchedule:getDraftSchedule',
+      saveDraftSchedule: 'draftSchedule:saveDraftSchedule',
+    },
   },
   syncCurrentProgramEvaluationFromLegacy: vi.fn(),
 }))
@@ -64,7 +68,54 @@ vi.mock('react-icons/fi', () => ({
   FiPlus: (props: any) => React.createElement('span', props, 'plus-icon'),
   FiMessageSquare: (props: any) => React.createElement('span', props, 'message-icon'),
   FiRefreshCcw: (props: any) => React.createElement('span', props, 'refresh-ccw'),
+  FiAlertTriangle: (props: any) => React.createElement('span', props, 'alert-triangle'),
+  FiCheckCircle: (props: any) => React.createElement('span', props, 'check-icon'),
+  FiInfo: (props: any) => React.createElement('span', props, 'info-icon'),
+  FiTrendingUp: (props: any) => React.createElement('span', props, 'trending-icon'),
+  FiCpu: (props: any) => React.createElement('span', props, 'cpu-icon'),
+  FiLoader: (props: any) => React.createElement('span', props, 'loader-icon'),
+  FiSave: (props: any) => React.createElement('span', props, 'save-icon'),
+  FiDownload: (props: any) => React.createElement('span', props, 'download-icon'),
 }))
+
+// ── ScheduleBuilder mocks ────────────────────────────────────────────────────
+
+const scheduleMocks = vi.hoisted(() => ({
+  validateScheduledClassesLocally: vi.fn().mockReturnValue({
+    valid: true, conflicts: [], totalCredits: 0, warnings: [],
+  }),
+  generateAutoSchedule: vi.fn(),
+  getClassById: vi.fn(),
+  createScheduleSnapshot: vi.fn(),
+  listScheduleSnapshots: vi.fn().mockResolvedValue([]),
+  deleteScheduleSnapshot: vi.fn(),
+  deriveRequirementsSummaryFromProgramEvaluation: vi.fn().mockReturnValue(null),
+}))
+
+vi.mock('../lib/scheduleApi', () => ({
+  validateScheduledClassesLocally: scheduleMocks.validateScheduledClassesLocally,
+  generateAutoSchedule: scheduleMocks.generateAutoSchedule,
+  getClassById: scheduleMocks.getClassById,
+  createScheduleSnapshot: scheduleMocks.createScheduleSnapshot,
+  listScheduleSnapshots: scheduleMocks.listScheduleSnapshots,
+  deleteScheduleSnapshot: scheduleMocks.deleteScheduleSnapshot,
+  deriveRequirementsSummaryFromProgramEvaluation: scheduleMocks.deriveRequirementsSummaryFromProgramEvaluation,
+}))
+
+vi.mock('../lib/scheduleExport', () => ({
+  exportAsJSON: vi.fn(),
+  exportAsCSV: vi.fn(),
+}))
+
+vi.mock('./schedule/WeeklyCalendar', () => ({
+  default: () => React.createElement('div', { 'data-testid': 'weekly-calendar' }),
+}))
+vi.mock('./schedule/ClassSearchSidebar', () => ({
+  default: () => React.createElement('div', { 'data-testid': 'class-search-sidebar' }),
+}))
+vi.mock('./schedule/WarningModal', () => ({ default: () => null }))
+vi.mock('./schedule/ScheduleImpactModal', () => ({ default: () => null }))
+vi.mock('./schedule/SnapshotManagerModal', () => ({ default: () => null }))
 
 // Stub markdown
 vi.mock('react-markdown', () => ({
@@ -185,6 +236,92 @@ describe('ProgressPage — error recovery flow', () => {
     expect(container.querySelector('[role="alert"]')).toBeNull()
     expect(container.textContent).toContain('Jane Doe')
     expect(container.querySelector('[data-testid="degree-progress-card"]')).not.toBeNull()
+  })
+})
+
+// ── ScheduleBuilder error recovery ──────────────────────────────────────────
+
+describe('ScheduleBuilder — error recovery flow', () => {
+  let container: HTMLDivElement
+  let root: Root
+
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+    vi.clearAllMocks()
+    scheduleMocks.listScheduleSnapshots.mockResolvedValue([])
+    scheduleMocks.validateScheduledClassesLocally.mockReturnValue({
+      valid: true, conflicts: [], totalCredits: 0, warnings: [],
+    })
+    window.confirm = vi.fn().mockReturnValue(true)
+  })
+
+  afterEach(async () => {
+    await act(async () => { root.unmount() })
+    container.remove()
+  })
+
+  async function render() {
+    const { default: ScheduleBuilder } = await import('./schedule/ScheduleBuilder')
+    await act(async () => {
+      root.render(<ScheduleBuilder />)
+    })
+  }
+
+  it('loading state: renders builder when getDraftSchedule returns undefined (no crash)', async () => {
+    const mockClient = { query: vi.fn().mockResolvedValue(undefined), mutation: vi.fn() }
+    progressMocks.getConvexClient.mockReturnValue(mockClient)
+
+    await render()
+
+    // Calendar and sidebar render in empty state
+    expect(container.querySelector('[data-testid="weekly-calendar"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="class-search-sidebar"]')).not.toBeNull()
+    // The only alert is the informational requirements notice (not an error)
+    const alerts = Array.from(container.querySelectorAll('[role="alert"]'))
+    const errorAlerts = alerts.filter(a => !a.textContent?.includes('program evaluation'))
+    expect(errorAlerts).toHaveLength(0)
+  })
+
+  it('empty state: shows "Start building" when getDraftSchedule returns null', async () => {
+    const mockClient = { query: vi.fn().mockResolvedValue(null), mutation: vi.fn() }
+    progressMocks.getConvexClient.mockReturnValue(mockClient)
+
+    await render()
+
+    // Calendar renders in empty state with 0 classes
+    expect(container.querySelector('[data-testid="weekly-calendar"]')).not.toBeNull()
+    // Toolbar shows 0 classes
+    expect(container.textContent).toContain('0')
+  })
+
+  it('offline state: renders gracefully when Convex client is null', async () => {
+    progressMocks.getConvexClient.mockReturnValue(null)
+
+    await render()
+
+    // Builder UI still renders
+    expect(container.querySelector('[data-testid="weekly-calendar"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="class-search-sidebar"]')).not.toBeNull()
+  })
+
+  it('error state: shows error toast when auto-generate throws', async () => {
+    progressMocks.getConvexClient.mockReturnValue(null)
+    scheduleMocks.generateAutoSchedule.mockRejectedValue(new Error('API unavailable'))
+
+    await render()
+
+    const autoBtn = Array.from(container.querySelectorAll('button')).find(b =>
+      b.textContent?.includes('Auto Generate'),
+    )
+    expect(autoBtn).not.toBeNull()
+
+    await act(async () => { autoBtn!.click() })
+
+    const alerts = Array.from(container.querySelectorAll('[role="alert"]'))
+    const errorAlert = alerts.find(a => a.textContent?.includes('API unavailable'))
+    expect(errorAlert).not.toBeNull()
   })
 })
 

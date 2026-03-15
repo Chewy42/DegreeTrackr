@@ -189,3 +189,8 @@
 - **Build**: PASS (1.34s, CI=true, 0 TS errors)
 - **Test files**: 166
 - **Wave 27 additions**: DT229 degreeTemplate, DT230 scheduleCapacity, DT231 scheduleExport, DT232 semesterGrouping, DT233 transcriptImport, DT234 convex/config, DT235 evaluationHelpers, DT236 profileHelpers, DT237 chatHelpers, DT238 = this entry
+
+## Wave 28 Complete (2026-03-15 07:12 AM)
+- **Build**: PASS (1.29s, CI=true, 0 TS errors)
+- **Test files**: 167
+- **Wave 28 additions**: DT239 evaluationReupload, DT240-DT242 confirmed passing (scheduleApi/xss-prevention/usePageTitle). DT243/DT247 health check partial (individual pass, full-suite hangs). DT244-DT246 deferred (ExploreChat/OnboardingChat/EmailConfirmation need E2E). DT248 = this entry

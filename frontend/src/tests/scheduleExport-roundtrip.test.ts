@@ -132,3 +132,55 @@ describe('schedule CSV export → parse roundtrip', () => {
     expect(lines[0]).toBe('Class,Days,StartTime,EndTime,Credits,Instructor')
   })
 })
+
+// ── Special character edge cases ──────────────────────────────────────────
+
+describe('schedule export special character handling', () => {
+  it('CSV: course name with commas is properly quoted', () => {
+    const classWithComma: ExportableClass = {
+      code: 'HIST 300',
+      title: 'War, Peace, and Diplomacy',
+      credits: 3,
+      displayDays: 'MWF',
+      displayTime: '2:00pm - 2:50pm',
+      professor: "O'Brien",
+    }
+
+    const csv = exportAsCSV([classWithComma])
+    const lines = csv.split('\n')
+    // Class field is wrapped in quotes by exportAsCSV, so commas are safe
+    expect(lines[1]).toContain('"HIST 300 - War, Peace, and Diplomacy"')
+  })
+
+  it('CSV: course with double quotes in title', () => {
+    const classWithQuotes: ExportableClass = {
+      code: 'ENG 450',
+      title: 'The "Lost Generation" in Literature',
+      credits: 3,
+      displayDays: 'TuTh',
+      displayTime: '11:00am - 12:15pm',
+      professor: 'Dr. Smith',
+    }
+
+    const csv = exportAsCSV([classWithQuotes])
+    const lines = csv.split('\n')
+    expect(lines).toHaveLength(2)
+    expect(lines[1]).toContain('ENG 450')
+    expect(lines[1]).toContain('Lost Generation')
+  })
+
+  it('JSON: special characters preserved verbatim', () => {
+    const classWithSpecial: ExportableClass = {
+      code: 'MATH 301',
+      title: 'Algebra, Groups & "Rings"',
+      credits: 4,
+      displayDays: 'MWF',
+      displayTime: '3:00pm - 3:50pm',
+      professor: "O'Connor",
+    }
+
+    const json = exportAsJSON([classWithSpecial])
+    expect(json[0].className).toBe('Algebra, Groups & "Rings"')
+    expect(json[0].instructor).toBe("O'Connor")
+  })
+})

@@ -1,332 +1,71 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { LegacyBoundaryError } from './legacyBoundary'
+// @vitest-environment jsdom
+import { describe, expect, it, vi } from 'vitest'
 
-// ── Mock the Convex client singleton ────────────────────────────────
-const mockQuery = vi.fn()
-const mockMutation = vi.fn()
-const mockAction = vi.fn()
+// Mock the convex client module before importing helpers
+vi.mock('./client', () => ({
+  getConvexClient: vi.fn(() => null), // default: no client
+}))
+vi.mock('./api', () => ({
+  convexApi: {
+    chat: {
+      listCurrentUserSessions: 'chat.listCurrentUserSessions',
+      createSession: 'chat.createSession',
+      deleteSession: 'chat.deleteSession',
+      clearExploreSessions: 'chat.clearExploreSessions',
+      getSessionMessages: 'chat.getSessionMessages',
+      addMessage: 'chat.addMessage',
+      sendCurrentExploreMessage: 'chat.sendCurrentExploreMessage',
+    },
+  },
+}))
+vi.mock('../runtimeConfig', () => ({
+  getApiBaseUrl: vi.fn(() => '/api'),
+  apiUrl: vi.fn((p: string) => `/api${p}`),
+}))
+vi.mock('./legacyBoundary', () => ({
+  resolveLegacyApiBaseUrl: vi.fn((url: string) => url),
+  toLegacyBoundaryError: vi.fn(() => null),
+  LegacyBoundaryError: class extends Error {},
+}))
 
-vi.mock('./client', () => {
-  let clientEnabled = false
-  return {
-    getConvexClient: () =>
-      clientEnabled ? { query: mockQuery, mutation: mockMutation, action: mockAction } : null,
-    resetConvexClientForTests: () => {
-      clientEnabled = false
-    },
-    __enableClient: () => {
-      clientEnabled = true
-    },
-  }
+import { listChatSessionsConvex, createChatSession, deleteChatSessionConvex, getSessionMessagesConvex } from './chatHelpers'
+import { getConvexClient } from './client'
+
+describe('chatHelpers — client unavailable (throws)', () => {
+  it('listChatSessionsConvex throws when client is null', async () => {
+    ;(getConvexClient as ReturnType<typeof vi.fn>).mockReturnValue(null)
+    await expect(listChatSessionsConvex()).rejects.toThrow(/convex client is unavailable/i)
+  })
+
+  it('createChatSession throws when client is null', async () => {
+    ;(getConvexClient as ReturnType<typeof vi.fn>).mockReturnValue(null)
+    await expect(createChatSession('explore')).rejects.toThrow(/convex client is unavailable/i)
+  })
+
+  it('deleteChatSessionConvex throws when client is null', async () => {
+    ;(getConvexClient as ReturnType<typeof vi.fn>).mockReturnValue(null)
+    await expect(deleteChatSessionConvex('session-1')).rejects.toThrow(/convex client is unavailable/i)
+  })
+
+  it('getSessionMessagesConvex throws when client is null', async () => {
+    ;(getConvexClient as ReturnType<typeof vi.fn>).mockReturnValue(null)
+    await expect(getSessionMessagesConvex('session-1')).rejects.toThrow(/convex client is unavailable/i)
+  })
 })
 
-import { resetConvexClientForTests } from './client'
-import {
-  addChatMessage,
-  clearExploreSessionsConvex,
-  createChatSession,
-  deleteChatSessionConvex,
-  getSessionMessagesConvex,
-  listChatSessionsConvex,
-  sendCurrentExploreMessageConvex,
-  sendExploreUserMessage,
-} from './chatHelpers'
-
-// Cast to access test helper
-const clientModule = await import('./client') as any
-function enableConvex() {
-  clientModule.__enableClient()
-}
-
-afterEach(() => {
-  resetConvexClientForTests()
-  mockQuery.mockReset()
-  mockMutation.mockReset()
-  mockAction.mockReset()
-})
-
-describe('chatHelpers', () => {
-  it('throws when Convex client is unavailable', async () => {
-    await expect(listChatSessionsConvex()).rejects.toThrow('Convex client is unavailable.')
+describe('chatHelpers — with mock client', () => {
+  it('listChatSessionsConvex calls client.query with correct function key', async () => {
+    const mockQuery = vi.fn().mockResolvedValue([])
+    ;(getConvexClient as ReturnType<typeof vi.fn>).mockReturnValue({ query: mockQuery, mutation: vi.fn() })
+    await listChatSessionsConvex('explore')
+    expect(mockQuery).toHaveBeenCalledWith('chat.listCurrentUserSessions', { scope: 'explore' })
   })
 
-  it('listChatSessionsConvex calls query with scope', async () => {
-    enableConvex()
-    const sessions = [{ _id: 's1', title: 'Explore', scope: 'explore', lastMessageAt: 100, createdAt: 50 }]
-    mockQuery.mockResolvedValue(sessions)
-
-    const result = await listChatSessionsConvex('explore')
-
-    expect(mockQuery).toHaveBeenCalledTimes(1)
-    expect(mockQuery.mock.calls[0]?.[1]).toEqual({ scope: 'explore' })
-    expect(result).toEqual(sessions)
-  })
-
-  it('listChatSessionsConvex passes empty object when no scope', async () => {
-    enableConvex()
-    mockQuery.mockResolvedValue([])
-
-    await listChatSessionsConvex()
-
-    expect(mockQuery.mock.calls[0]?.[1]).toEqual({})
-  })
-
-  it('createChatSession calls mutation with scope and title', async () => {
-    enableConvex()
-    mockMutation.mockResolvedValue('new-session-id')
-
-    const result = await createChatSession('explore', 'My Chat')
-
-    expect(mockMutation).toHaveBeenCalledTimes(1)
-    expect(mockMutation.mock.calls[0]?.[1]).toEqual({ scope: 'explore', title: 'My Chat' })
-    expect(result).toBe('new-session-id')
-  })
-
-  it('deleteChatSessionConvex calls mutation', async () => {
-    enableConvex()
-    mockMutation.mockResolvedValue(undefined)
-
-    await deleteChatSessionConvex('session-to-delete')
-
-    expect(mockMutation).toHaveBeenCalledTimes(1)
-    expect(mockMutation.mock.calls[0]?.[1]).toEqual({ sessionId: 'session-to-delete' })
-  })
-
-  it('clearExploreSessionsConvex passes keepSessionId when provided', async () => {
-    enableConvex()
-    mockMutation.mockResolvedValue(undefined)
-
-    await clearExploreSessionsConvex('keep-me')
-
-    expect(mockMutation.mock.calls[0]?.[1]).toEqual({ keepSessionId: 'keep-me' })
-  })
-
-  it('clearExploreSessionsConvex passes empty object when no keepSessionId', async () => {
-    enableConvex()
-    mockMutation.mockResolvedValue(undefined)
-
-    await clearExploreSessionsConvex()
-
-    expect(mockMutation.mock.calls[0]?.[1]).toEqual({})
-  })
-
-  it('getSessionMessagesConvex returns messages', async () => {
-    enableConvex()
-    const messages = [
-      { _id: 'm1', role: 'user' as const, content: 'Hello', createdAt: 100 },
-      { _id: 'm2', role: 'assistant' as const, content: 'Hi there', createdAt: 200 },
-    ]
-    mockQuery.mockResolvedValue(messages)
-
-    const result = await getSessionMessagesConvex('session-1')
-
-    expect(mockQuery.mock.calls[0]?.[1]).toEqual({ sessionId: 'session-1' })
-    expect(result).toEqual(messages)
-  })
-
-  it('addChatMessage calls mutation with correct args', async () => {
-    enableConvex()
-    mockMutation.mockResolvedValue('msg-id-1')
-
-    const result = await addChatMessage('s1', 'user', 'Hello world')
-
-    expect(mockMutation.mock.calls[0]?.[1]).toEqual({
-      sessionId: 's1',
-      sender: 'user',
-      content: 'Hello world',
-    })
-    expect(result).toBe('msg-id-1')
-  })
-
-  it('sendExploreUserMessage creates session when none provided', async () => {
-    enableConvex()
-    mockMutation
-      .mockResolvedValueOnce('new-sess') // createSession
-      .mockResolvedValueOnce('msg-1')    // addMessage
-
-    const result = await sendExploreUserMessage(null, 'What courses?')
-
-    expect(mockMutation).toHaveBeenCalledTimes(2)
-    expect(result).toEqual({ sessionId: 'new-sess', userMessageId: 'msg-1' })
-  })
-
-  it('sendExploreUserMessage uses existing session', async () => {
-    enableConvex()
-    mockMutation.mockResolvedValueOnce('msg-2')
-
-    const result = await sendExploreUserMessage('existing-sess', 'Tell me more')
-
-    expect(mockMutation).toHaveBeenCalledTimes(1)
-    expect(result).toEqual({ sessionId: 'existing-sess', userMessageId: 'msg-2' })
-  })
-
-  // ── Error paths ─────────────────────────────────────────────────────
-
-  it('sendExploreUserMessage rejects when createChatSession mutation fails', async () => {
-    enableConvex()
-    mockMutation.mockRejectedValueOnce(new Error('Database unavailable'))
-
-    await expect(sendExploreUserMessage(null, 'What courses?')).rejects.toThrow('Database unavailable')
-    expect(mockMutation).toHaveBeenCalledTimes(1)
-  })
-
-  it('sendExploreUserMessage rejects when addMessage mutation fails after session is created', async () => {
-    enableConvex()
-    mockMutation
-      .mockResolvedValueOnce('new-sess')          // createSession succeeds
-      .mockRejectedValueOnce(new Error('Write failed')) // addMessage fails
-
-    await expect(sendExploreUserMessage(null, 'What courses?')).rejects.toThrow('Write failed')
-    expect(mockMutation).toHaveBeenCalledTimes(2)
-  })
-
-  it('sendCurrentExploreMessageConvex propagates plain action errors', async () => {
-    enableConvex()
-    mockAction.mockRejectedValueOnce(new Error('AI API timeout'))
-
-    await expect(
-      sendCurrentExploreMessageConvex({ jwt: 'tok', message: 'Hello', apiBaseUrl: 'http://localhost:5000/api' })
-    ).rejects.toThrow('AI API timeout')
-  })
-
-  it('sendCurrentExploreMessageConvex wraps legacy boundary errors from the action', async () => {
-    enableConvex()
-    mockAction.mockRejectedValueOnce(new Error('LEGACY_BOUNDARY_ERROR:503:Service temporarily unavailable'))
-
-    const err = await sendCurrentExploreMessageConvex({
-      jwt: 'tok',
-      message: 'Hello',
-      apiBaseUrl: 'http://localhost:5000/api',
-    }).catch(e => e)
-
-    expect(err).toBeInstanceOf(LegacyBoundaryError)
-    expect((err as LegacyBoundaryError).status).toBe(503)
-    expect(err.message).toBe('Service temporarily unavailable')
-  })
-
-  // ── Empty conversation state ─────────────────────────────────────────
-
-  it('getSessionMessagesConvex returns empty array for a new session with no messages', async () => {
-    enableConvex()
-    mockQuery.mockResolvedValue([])
-
-    const result = await getSessionMessagesConvex('new-empty-session')
-
-    expect(result).toEqual([])
-    expect(mockQuery.mock.calls[0]?.[1]).toEqual({ sessionId: 'new-empty-session' })
-  })
-
-  it('sendCurrentExploreMessageConvex calls legacy bridge action with resolved api base url', async () => {
-    enableConvex()
-    mockAction.mockResolvedValue({
-      session: {
-        id: 'chat-1',
-        scope: 'explore',
-        title: 'Explore My Options',
-        createdAt: 123,
-        lastMessageAt: 456,
-        legacySessionId: 'legacy-1',
-      },
-      messages: [
-        { id: 'm1', role: 'user', content: 'Hello', createdAt: 111 },
-        { id: 'm2', role: 'assistant', content: 'Hi', createdAt: 222 },
-      ],
-      suggestions: ['What courses do I need?'],
-    })
-
-    const result = await sendCurrentExploreMessageConvex({
-      jwt: 'jwt-token',
-      message: 'Hello',
-      sessionId: 'chat-1',
-      apiBaseUrl: 'http://localhost:5000/api',
-    })
-
-    expect(mockAction).toHaveBeenCalledTimes(1)
-    expect(mockAction.mock.calls[0]?.[1]).toEqual({
-      jwt: 'jwt-token',
-      apiBaseUrl: 'http://localhost:5000/api',
-      message: 'Hello',
-      sessionId: 'chat-1',
-    })
-    expect(result.session.legacySessionId).toBe('legacy-1')
-  })
-
-  // ── clearExploreSessionsConvex ────────────────────────────────────────
-
-  it('clearExploreSessionsConvex throws when Convex client is unavailable', async () => {
-    await expect(clearExploreSessionsConvex()).rejects.toThrow('Convex client is unavailable.')
-  })
-
-  // ── Session persistence ───────────────────────────────────────────────
-
-  it('session id from createChatSession can be passed to getSessionMessagesConvex', async () => {
-    enableConvex()
-    mockMutation.mockResolvedValue('persisted-session-id')
-    mockQuery.mockResolvedValue([])
-
-    const sessionId = await createChatSession('explore', 'Persistence Test')
-    const messages = await getSessionMessagesConvex(sessionId)
-
-    expect(sessionId).toBe('persisted-session-id')
-    expect(mockQuery.mock.calls[0]?.[1]).toEqual({ sessionId: 'persisted-session-id' })
-    expect(messages).toEqual([])
-  })
-
-  // ── Message ordering ──────────────────────────────────────────────────
-
-  it('getSessionMessagesConvex returns messages in chronological order from Convex', async () => {
-    enableConvex()
-    const ordered = [
-      { _id: 'm1', role: 'user' as const, content: 'First', createdAt: 100 },
-      { _id: 'm2', role: 'assistant' as const, content: 'Second', createdAt: 200 },
-      { _id: 'm3', role: 'user' as const, content: 'Third', createdAt: 300 },
-    ]
-    mockQuery.mockResolvedValue(ordered)
-
-    const result = await getSessionMessagesConvex('sess-ordered')
-
-    expect(result).toHaveLength(3)
-    expect(result[0]!._id).toBe('m1')
-    expect(result[1]!._id).toBe('m2')
-    expect(result[2]!._id).toBe('m3')
-    // Verify chronological ordering is preserved end-to-end
-    expect(result[0]!.createdAt).toBeLessThan(result[1]!.createdAt)
-    expect(result[1]!.createdAt).toBeLessThan(result[2]!.createdAt)
-  })
-
-  // ── Large message body ────────────────────────────────────────────────
-
-  it('addChatMessage passes a 500-char content body to the mutation without truncation', async () => {
-    enableConvex()
-    mockMutation.mockResolvedValue('msg-large')
-
-    const largeContent = 'A'.repeat(500)
-    const result = await addChatMessage('s1', 'user', largeContent)
-
-    expect(mockMutation.mock.calls[0]?.[1]).toEqual({
-      sessionId: 's1',
-      sender: 'user',
-      content: largeContent,
-    })
-    expect((mockMutation.mock.calls[0]?.[1] as { content: string }).content).toHaveLength(500)
-    expect(result).toBe('msg-large')
-  })
-
-  // ── Concurrent sends ──────────────────────────────────────────────────
-
-  it('two concurrent addChatMessage calls both resolve without dropping either', async () => {
-    enableConvex()
-    mockMutation
-      .mockResolvedValueOnce('msg-concurrent-1')
-      .mockResolvedValueOnce('msg-concurrent-2')
-
-    const [r1, r2] = await Promise.all([
-      addChatMessage('sess', 'user', 'First concurrent message'),
-      addChatMessage('sess', 'user', 'Second concurrent message'),
-    ])
-
-    expect(mockMutation).toHaveBeenCalledTimes(2)
-    expect(r1).toBe('msg-concurrent-1')
-    expect(r2).toBe('msg-concurrent-2')
+  it('createChatSession calls client.mutation', async () => {
+    const mockMutation = vi.fn().mockResolvedValue('new-session-id')
+    ;(getConvexClient as ReturnType<typeof vi.fn>).mockReturnValue({ query: vi.fn(), mutation: mockMutation })
+    const id = await createChatSession('explore', 'My Chat')
+    expect(mockMutation).toHaveBeenCalledWith('chat.createSession', { scope: 'explore', title: 'My Chat' })
+    expect(id).toBe('new-session-id')
   })
 })

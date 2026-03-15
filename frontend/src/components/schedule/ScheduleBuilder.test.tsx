@@ -64,6 +64,19 @@ let sidebarProps: {
   conflicts: Record<string, string>
 } | null = null
 
+let snapshotModalProps: {
+  isOpen: boolean
+  onClose: () => void
+  onSave: (name: string) => Promise<void>
+  onLoad: (snapshot: any) => Promise<void>
+  onDelete: (snapshot: any) => Promise<void>
+  onRefresh: () => Promise<void>
+  snapshots: any[]
+  loading: boolean
+  saving: boolean
+  error: string | null
+} | null = null
+
 vi.mock('./WeeklyCalendar', () => ({
   default: (props: typeof calendarProps) => {
     calendarProps = props
@@ -80,7 +93,12 @@ vi.mock('./ClassSearchSidebar', () => ({
 
 vi.mock('./WarningModal', () => ({ default: () => null }))
 vi.mock('./ScheduleImpactModal', () => ({ default: () => null }))
-vi.mock('./SnapshotManagerModal', () => ({ default: () => null }))
+vi.mock('./SnapshotManagerModal', () => ({
+  default: (props: any) => {
+    snapshotModalProps = props
+    return null
+  },
+}))
 
 // ── Test factory ─────────────────────────────────────────────────────────────
 
@@ -142,6 +160,7 @@ describe('ScheduleBuilder', () => {
   beforeEach(() => {
     calendarProps = null
     sidebarProps = null
+    snapshotModalProps = null
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
@@ -152,6 +171,7 @@ describe('ScheduleBuilder', () => {
       totalCredits: 0,
       warnings: [],
     })
+    mocks.listScheduleSnapshots.mockResolvedValue([])
     window.confirm = vi.fn().mockReturnValue(true)
   })
 
@@ -429,6 +449,49 @@ describe('ScheduleBuilder', () => {
     // CLASS_A should be removed; only CLASS_C remains
     expect(calendarProps!.classes).toHaveLength(1)
     expect(calendarProps!.classes[0]!.id).toBe('ENG-301-01')
+  })
+
+  // ── DT38 network failure handling ─────────────────────────────────────────
+
+  it('shows requirementsError toast when Convex client is unavailable', async () => {
+    // The module-level mock has getConvexClient returning null, which triggers
+    // setRequirementsError('Convex must be configured…') in the useEffect.
+    await render()
+    await act(async () => {})
+
+    const alerts = Array.from(container.querySelectorAll('[role="alert"]'))
+    const convexAlert = alerts.find(a =>
+      a.textContent?.includes('Convex must be configured'),
+    )
+    expect(convexAlert).not.toBeNull()
+  })
+
+  it('snapshot save mutation throws → snapshotError toast visible after modal closes', async () => {
+    mocks.createScheduleSnapshot.mockRejectedValue(new Error('Server unavailable'))
+
+    await render()
+    // Need at least one class before saving a snapshot
+    await act(async () => { sidebarProps!.onAddClass(CLASS_A) })
+
+    // Open the snapshots modal
+    const snapshotsBtn = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(b =>
+      b.textContent?.includes('Snapshots'),
+    )!
+    await act(async () => { snapshotsBtn.click() })
+
+    // Trigger save via the modal's onSave prop (simulates user clicking save inside modal)
+    await act(async () => {
+      await snapshotModalProps!.onSave('My Schedule')
+    })
+
+    // Close the modal — the snapshotError toast is only rendered outside the modal
+    await act(async () => { snapshotModalProps!.onClose() })
+
+    const alerts = Array.from(container.querySelectorAll('[role="alert"]'))
+    const errorAlert = alerts.find(a =>
+      a.textContent?.includes('Failed to save schedule snapshot'),
+    )
+    expect(errorAlert).not.toBeNull()
   })
 
   it('resolving all conflicts clears the conflict indicators', async () => {

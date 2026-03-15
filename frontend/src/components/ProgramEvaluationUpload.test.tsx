@@ -248,6 +248,46 @@ describe('ProgramEvaluationUpload', () => {
     expect(mocks.signOut).toHaveBeenCalled()
   })
 
+  // ── Re-upload behavior ──────────────────────────────────────────────────
+
+  it('re-upload: calls the replace mutation again on a second upload', async () => {
+    await render()
+
+    // First upload succeeds
+    await selectFile(new MockFile('eval-v1.pdf', 1))
+    await act(async () => { getUploadButton()?.click() })
+    await act(async () => {})
+    expect(mocks.replaceCurrentProgramEvaluationFromUpload).toHaveBeenCalledTimes(1)
+
+    // Select a new file and upload again — should call the mutation a second time
+    await selectFile(new MockFile('eval-v2.pdf', 1))
+    await act(async () => { getUploadButton()?.click() })
+    await act(async () => {})
+    expect(mocks.replaceCurrentProgramEvaluationFromUpload).toHaveBeenCalledTimes(2)
+  })
+
+  it('re-upload error: shows error and upload button re-enabled for retry', async () => {
+    await render()
+
+    // First upload succeeds
+    await selectFile(new MockFile('eval-v1.pdf', 1))
+    await act(async () => { getUploadButton()?.click() })
+    await act(async () => {})
+
+    // Second upload (re-upload) fails
+    mocks.replaceCurrentProgramEvaluationFromUpload.mockRejectedValueOnce(new Error('Server error'))
+    await selectFile(new MockFile('eval-v2.pdf', 1))
+    await act(async () => { getUploadButton()?.click() })
+    await act(async () => {})
+
+    // Error is displayed
+    const alertEl = container.querySelector('[role="alert"]')
+    expect(alertEl?.textContent).toContain('Server error')
+
+    // Upload button is re-enabled so the user can retry
+    expect(getUploadButton()?.disabled).toBe(false)
+  })
+
   // ── Convex unavailable ──────────────────────────────────────────────────
 
   it('shows an error when the Convex client is unavailable', async () => {

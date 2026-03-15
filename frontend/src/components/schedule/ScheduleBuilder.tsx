@@ -19,6 +19,7 @@ import SnapshotManagerModal from './SnapshotManagerModal';
 import { useAuth } from '../../auth/AuthContext';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { convexApi, getConvexClient } from '../../lib/convex';
+import { exportAsJSON, exportAsCSV } from '../../lib/scheduleExport';
 import { FiTrendingUp, FiCpu, FiLoader, FiSave, FiDownload } from 'react-icons/fi';
 
 export default function ScheduleBuilder() {
@@ -379,35 +380,11 @@ export default function ScheduleBuilder() {
 	  let filename: string;
 
 	  if (format === 'json') {
-	    const data = scheduledClasses.map(cls => {
-	      const [startTime = '', endTime = ''] = cls.displayTime.split(' - ');
-	      return {
-	        code: cls.code,
-	        className: cls.title,
-	        days: cls.displayDays,
-	        startTime: startTime.trim(),
-	        endTime: endTime.trim(),
-	        credits: cls.credits,
-	        instructor: cls.professor,
-	      };
-	    });
-	    content = JSON.stringify(data, null, 2);
+	    content = JSON.stringify(exportAsJSON(scheduledClasses), null, 2);
 	    mimeType = 'application/json';
 	    filename = `schedule-${date}.json`;
 	  } else {
-	    const header = 'Class,Days,StartTime,EndTime,Credits,Instructor';
-	    const rows = scheduledClasses.map(cls => {
-	      const [startTime = '', endTime = ''] = cls.displayTime.split(' - ');
-	      return [
-	        `"${cls.code} - ${cls.title}"`,
-	        `"${cls.displayDays}"`,
-	        `"${startTime.trim()}"`,
-	        `"${endTime.trim()}"`,
-	        cls.credits,
-	        `"${cls.professor}"`,
-	      ].join(',');
-	    });
-	    content = [header, ...rows].join('\n');
+	    content = exportAsCSV(scheduledClasses);
 	    mimeType = 'text/csv';
 	    filename = `schedule-${date}.csv`;
 	  }

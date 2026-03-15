@@ -14,6 +14,7 @@ import ExploreChatLayout from "./components/ExploreChatLayout";
 import SettingsPage from "./components/SettingsPage";
 import { ProgressPage } from "./components/progress";
 import ScheduleBuilder from "./components/schedule/ScheduleBuilder";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 export default function App() {
   const location = useLocation();
@@ -90,7 +91,9 @@ export default function App() {
                 subtitle="Start by uploading your official program evaluation PDF so DegreeTrackr can understand your path."
                 maxWidth="max-w-7xl"
               >
-                <ProgramEvaluationUpload />
+                <ErrorBoundary>
+                  <ProgramEvaluationUpload />
+                </ErrorBoundary>
               </AuthCard>
             </div>
           </main>
@@ -99,7 +102,11 @@ export default function App() {
     }
 
     if (!preferences.onboardingComplete) {
-      return <OnboardingChat />;
+      return (
+        <ErrorBoundary>
+          <OnboardingChat />
+        </ErrorBoundary>
+      );
     }
 
     // Home and Progress page use full-width layout with ProgressPage (dashboard)
@@ -108,7 +115,9 @@ export default function App() {
         <div className="flex h-screen w-screen overflow-hidden bg-surface-muted text-text-primary">
           <Sidebar />
           <main className="flex-1 h-full overflow-y-auto min-w-0">
-            <ProgressPage />
+            <ErrorBoundary>
+              <ProgressPage />
+            </ErrorBoundary>
           </main>
         </div>
       );
@@ -119,7 +128,9 @@ export default function App() {
         <div className="flex h-screen w-screen overflow-hidden bg-surface-muted text-text-primary">
           <Sidebar />
           <main className="flex-1 h-full overflow-y-auto min-w-0">
-            <ExploreChatLayout />
+            <ErrorBoundary>
+              <ExploreChatLayout />
+            </ErrorBoundary>
           </main>
         </div>
       );
@@ -130,7 +141,9 @@ export default function App() {
         <div className="flex h-screen w-screen overflow-hidden bg-surface-muted text-text-primary">
           <Sidebar />
           <main className="flex-1 h-full overflow-y-auto p-4 min-w-0">
-            <SettingsPage />
+            <ErrorBoundary>
+              <SettingsPage />
+            </ErrorBoundary>
           </main>
         </div>
       );
@@ -141,7 +154,9 @@ export default function App() {
         <div className="flex h-screen w-screen overflow-hidden bg-surface-muted text-text-primary">
           <Sidebar />
           <main className="flex-1 h-full overflow-hidden min-w-0">
-            <ScheduleBuilder />
+            <ErrorBoundary>
+              <ScheduleBuilder />
+            </ErrorBoundary>
           </main>
         </div>
       );

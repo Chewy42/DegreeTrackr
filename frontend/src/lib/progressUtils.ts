@@ -20,9 +20,42 @@ const GRADE_POINTS: Record<string, number> = {
   F: 0.0,
 }
 
-function gradeValue(grade: string | null | undefined): number {
+/** Non-GPA grades that should be excluded from GPA calculation. */
+const EXCLUDED_GRADES = new Set(['P', 'NP', 'S', 'U', 'W', 'I', 'IP', 'CR', 'NC', 'AU'])
+
+export function gradeValue(grade: string | null | undefined): number {
   if (!grade) return -1
   return GRADE_POINTS[grade] ?? -1
+}
+
+/**
+ * Calculate weighted GPA from a list of courses.
+ *
+ * - Pass/Fail and other non-letter grades are excluded
+ * - In-progress courses (no grade) are excluded
+ * - Repeated courses are deduplicated (best grade kept)
+ * - Empty input returns 0.0
+ */
+export function calculateGPA(courses: Course[]): number {
+  const deduped = deduplicateCourses(courses)
+
+  let totalPoints = 0
+  let totalCredits = 0
+
+  for (const course of deduped) {
+    const grade = course.grade
+    if (!grade) continue
+    if (EXCLUDED_GRADES.has(grade)) continue
+
+    const points = GRADE_POINTS[grade]
+    if (points === undefined) continue
+
+    totalPoints += points * course.credits
+    totalCredits += course.credits
+  }
+
+  if (totalCredits === 0) return 0.0
+  return totalPoints / totalCredits
 }
 
 /**

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Navigate } from 'react-router-dom';
 import {
   FiCheckCircle,
   FiCpu,
@@ -72,8 +73,15 @@ const ONBOARDING_QUESTIONS: OnboardingQuestion[] = [
 type OnboardingAnswers = Record<string, string>;
 
 export default function OnboardingChat() {
-  const { jwt, mergePreferences } = useAuth();
+  const { jwt, mergePreferences, preferences } = useAuth();
   const completeOnboarding = useMutation(convexApi.profile.completeCurrentOnboarding);
+
+  // Re-entry guard: if the user has already completed onboarding, send them
+  // to the dashboard rather than showing the onboarding flow again.
+  if (preferences.onboardingComplete) {
+    return <Navigate to="/" replace />;
+  }
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(() => {
     try {
       const saved = sessionStorage.getItem(ONBOARDING_STORAGE_KEY);

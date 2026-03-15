@@ -76,6 +76,13 @@ export default defineSchema({
     migrationSource,
   }).index('by_userId', ['userId']),
 
+  // ── Schedule drafts (auto-saved current schedule) ──────────────────────────
+  scheduleDrafts: defineTable({
+    userId: v.string(), // Clerk user ID (identity.subject)
+    classIds: v.array(v.string()),
+    updatedAt: v.number(), // epoch ms
+  }).index('by_userId', ['userId']),
+
   // ── Program evaluations ────────────────────────────────────────────────────
   programEvaluations: defineTable({
     userId: v.id('userProfiles'),

@@ -176,4 +176,16 @@ export const convexApi = {
       void
     >('scheduleSnapshots:deleteCurrentScheduleSnapshot'),
   },
+  draftSchedule: {
+    getDraftSchedule: makeFunctionReference<
+      'query',
+      NoArgs,
+      { classIds: string[]; updatedAt: number } | null
+    >('draftSchedule:getDraftSchedule'),
+    saveDraftSchedule: makeFunctionReference<
+      'mutation',
+      { classIds: string[] },
+      void
+    >('draftSchedule:saveDraftSchedule'),
+  },
 } as const

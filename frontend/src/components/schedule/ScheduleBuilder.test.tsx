@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   listScheduleSnapshots: vi.fn(),
   deleteScheduleSnapshot: vi.fn(),
   deriveRequirementsSummaryFromProgramEvaluation: vi.fn().mockReturnValue(null),
+  getConvexClient: vi.fn().mockReturnValue(null),
 }))
 
 vi.mock('../../lib/scheduleApi', () => ({
@@ -41,8 +42,12 @@ vi.mock('../../auth/AuthContext', () => ({
 vi.mock('../../lib/convex', () => ({
   convexApi: {
     evaluations: { getCurrentProgramEvaluation: 'evaluations:getCurrentProgramEvaluation' },
+    draftSchedule: {
+      getDraftSchedule: 'draftSchedule:getDraftSchedule',
+      saveDraftSchedule: 'draftSchedule:saveDraftSchedule',
+    },
   },
-  getConvexClient: () => null,
+  getConvexClient: (...args: any[]) => mocks.getConvexClient(...args),
 }))
 
 vi.mock('../../hooks/usePageTitle', () => ({
@@ -172,6 +177,7 @@ describe('ScheduleBuilder', () => {
       warnings: [],
     })
     mocks.listScheduleSnapshots.mockResolvedValue([])
+    mocks.getConvexClient.mockReturnValue(null)
     window.confirm = vi.fn().mockReturnValue(true)
   })
 
@@ -527,5 +533,105 @@ describe('ScheduleBuilder', () => {
     expect(container.textContent).not.toContain('Conflict')
     // The conflict panel uses aria-live="polite"; the Convex warning uses aria-live="assertive"
     expect(container.querySelector('[role="alert"][aria-live="polite"]')).toBeNull()
+  })
+
+  // ── DT42 schedule draft persistence ───────────────────────────────────────
+
+  describe('draft schedule persistence', () => {
+    function makeMockClient(initialClassIds: string[] = []) {
+      let savedIds: string[] = initialClassIds
+      return {
+        savedIds: () => savedIds,
+        client: {
+          query: vi.fn().mockImplementation(() =>
+            Promise.resolve(
+              savedIds.length > 0 ? { classIds: [...savedIds], updatedAt: Date.now() } : null,
+            ),
+          ),
+          mutation: vi.fn().mockImplementation((_ref: unknown, args: { classIds: string[] }) => {
+            savedIds = args.classIds
+            return Promise.resolve()
+          }),
+        },
+      }
+    }
+
+    beforeEach(() => {
+      mocks.getClassById.mockImplementation((id: string) => {
+        const map: Record<string, typeof CLASS_A> = {
+          'CS-101-01': CLASS_A,
+          'MATH-201-01': CLASS_B,
+        }
+        return map[id] ? Promise.resolve(map[id]) : Promise.reject(new Error('Not found'))
+      })
+    })
+
+    it('adding a class fires saveDraftSchedule mutation with the new classIds', async () => {
+      const { client } = makeMockClient()
+      mocks.getConvexClient.mockReturnValue(client)
+
+      await render()
+      await act(async () => { sidebarProps!.onAddClass(CLASS_A) })
+
+      expect(client.mutation).toHaveBeenCalledWith(
+        'draftSchedule:saveDraftSchedule',
+        { classIds: ['CS-101-01'] },
+      )
+    })
+
+    it('round-trip: class added in first mount appears in calendar after re-mount', async () => {
+      // ── First mount: add CLASS_A, draft is saved ──
+      const store = makeMockClient()
+      mocks.getConvexClient.mockReturnValue(store.client)
+
+      await render()
+      await act(async () => { sidebarProps!.onAddClass(CLASS_A) })
+
+      expect(store.savedIds()).toContain('CS-101-01')
+
+      // ── Unmount ──
+      await act(async () => { root.unmount() })
+      container.remove()
+      container = document.createElement('div')
+      document.body.appendChild(container)
+      root = createRoot(container)
+      calendarProps = null
+      sidebarProps = null
+
+      // ── Re-mount with the same store (draft returns the saved ids) ──
+      // Create a new client whose query returns the saved classIds
+      const reloadClient = {
+        query: vi.fn().mockResolvedValue({ classIds: store.savedIds(), updatedAt: Date.now() }),
+        mutation: vi.fn().mockResolvedValue(undefined),
+      }
+      mocks.getConvexClient.mockReturnValue(reloadClient)
+
+      await render()
+
+      expect(calendarProps!.classes).toHaveLength(1)
+      expect(calendarProps!.classes[0]!.id).toBe('CS-101-01')
+    })
+
+    it('removing a class updates the draft (deletion persists)', async () => {
+      const store = makeMockClient(['CS-101-01'])
+      mocks.getConvexClient.mockReturnValue(store.client)
+      mocks.validateScheduledClassesLocally.mockReturnValue({
+        valid: true, conflicts: [], totalCredits: 3, warnings: [],
+      })
+
+      await render()
+
+      // Draft loaded → CLASS_A should be in calendar
+      expect(calendarProps!.classes).toHaveLength(1)
+
+      // Remove CLASS_A
+      await act(async () => { calendarProps!.onRemoveClass('CS-101-01') })
+
+      expect(store.savedIds()).toHaveLength(0)
+      expect(store.client.mutation).toHaveBeenCalledWith(
+        'draftSchedule:saveDraftSchedule',
+        { classIds: [] },
+      )
+    })
   })
 })

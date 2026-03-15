@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FiAlertTriangle, FiCheckCircle, FiInfo } from 'react-icons/fi';
 import { deriveRequirementsSummaryFromProgramEvaluation, validateScheduledClassesLocally, generateAutoSchedule, getClassById, createScheduleSnapshot, listScheduleSnapshots, deleteScheduleSnapshot } from '../../lib/scheduleApi';
 import {
@@ -44,6 +44,51 @@ export default function ScheduleBuilder() {
 	const [snapshotSaving, setSnapshotSaving] = useState(false);
 	const [snapshotError, setSnapshotError] = useState<string | null>(null);
   const [requirementsError, setRequirementsError] = useState<string | null>(null);
+
+  // Track whether the initial draft load has completed so we don't overwrite
+  // a saved draft with an empty list on first mount.
+  const draftLoaded = useRef(false);
+
+  // Load the user's draft schedule from Convex on mount.
+  useEffect(() => {
+    if (draftLoaded.current) return; // load once only
+    if (!jwt) return;
+    const client = getConvexClient();
+    if (!client) {
+      draftLoaded.current = true;
+      return;
+    }
+
+    void (async () => {
+      try {
+        const draft = await client.query(convexApi.draftSchedule.getDraftSchedule, {});
+        if (draft && draft.classIds.length > 0) {
+          const classPromises = draft.classIds.map((id: string) =>
+            getClassById(id, jwt).catch(() => null),
+          );
+          const fetched = await Promise.all(classPromises);
+          const valid = fetched.filter((c): c is ClassSection => c !== null);
+          const schedulable = valid.filter(c => hasMeetingTimes(c));
+          setScheduledClasses(schedulable.map((cls, i) => ({ ...cls, color: getClassColor(i) })));
+        }
+      } catch (err) {
+        console.error('Failed to load draft schedule:', err);
+      } finally {
+        draftLoaded.current = true;
+      }
+    })();
+  }, [jwt]);
+
+  // Persist draft to Convex whenever the schedule changes (skip until draft is loaded).
+  useEffect(() => {
+    if (!draftLoaded.current) return;
+    if (!jwt) return;
+    const client = getConvexClient();
+    if (!client) return;
+    void client.mutation(convexApi.draftSchedule.saveDraftSchedule, {
+      classIds: scheduledClasses.map(c => c.id),
+    });
+  }, [scheduledClasses, jwt]);
 
   // Load user requirements from the Convex-backed current program evaluation.
   useEffect(() => {

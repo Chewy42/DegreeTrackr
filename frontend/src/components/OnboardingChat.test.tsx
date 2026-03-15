@@ -8,6 +8,7 @@ import OnboardingChat from './OnboardingChat'
 const mocks = vi.hoisted(() => ({
   completeOnboarding: vi.fn().mockResolvedValue({}),
   mergePreferences: vi.fn(),
+  preferences: { onboardingComplete: false } as Record<string, boolean>,
 }))
 
 vi.mock('convex/react', () => ({
@@ -19,6 +20,7 @@ vi.mock('../auth/AuthContext', () => ({
   useAuth: () => ({
     jwt: 'test-jwt',
     mergePreferences: mocks.mergePreferences,
+    preferences: mocks.preferences,
   }),
 }))
 
@@ -34,6 +36,11 @@ vi.mock('../lib/convex', () => ({
   deleteCurrentProgramEvaluationBoundary: vi.fn(),
 }))
 
+vi.mock('react-router-dom', () => ({
+  Navigate: ({ to }: { to: string }) =>
+    React.createElement('div', { 'data-testid': 'navigate-redirect', 'data-to': to }),
+}))
+
 const STORAGE_KEY = 'degreetrackr.onboarding_progress'
 
 describe('OnboardingChat', () => {
@@ -46,6 +53,7 @@ describe('OnboardingChat', () => {
     root = createRoot(container)
     sessionStorage.clear()
     vi.clearAllMocks()
+    mocks.preferences = { onboardingComplete: false }
     mocks.completeOnboarding.mockResolvedValue({})
   })
 
@@ -236,5 +244,25 @@ describe('OnboardingChat', () => {
 
     // Index 3 = work_status question
     expect(container.textContent).toContain('Do you have any work commitments?')
+  })
+
+  // ── DT43 re-entry guard ────────────────────────────────────────────────────
+
+  it('redirects to / when onboardingComplete is true (re-entry guard)', async () => {
+    mocks.preferences = { onboardingComplete: true }
+    await renderComponent()
+
+    const redirect = container.querySelector('[data-testid="navigate-redirect"]')
+    expect(redirect).not.toBeNull()
+    expect(redirect!.getAttribute('data-to')).toBe('/')
+    expect(container.textContent).not.toContain('Quick Setup')
+  })
+
+  it('shows onboarding flow when onboardingComplete is false', async () => {
+    mocks.preferences = { onboardingComplete: false }
+    await renderComponent()
+
+    expect(container.querySelector('[data-testid="navigate-redirect"]')).toBeNull()
+    expect(container.textContent).toContain('Quick Setup')
   })
 })

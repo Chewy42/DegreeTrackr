@@ -171,24 +171,24 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-surface">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white/80 backdrop-blur-sm z-10">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle bg-surface/80 backdrop-blur-sm z-10">
         <div>
-          <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+          <h1 className="text-lg font-bold text-text-primary flex items-center gap-2">
             <span className="bg-brand-100 p-1.5 rounded-lg text-brand-600">
               <FiMessageSquare className="h-4 w-4" />
             </span>
             Explore My Options
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-text-secondary mt-0.5">
             Reflect on your journey and plan your future
           </p>
         </div>
         <button
           type="button"
           onClick={handleNewChat}
-          className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
+          className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-text-secondary bg-surface-muted hover:bg-surface-elevated rounded-lg transition-colors border border-border-subtle"
         >
           <FiPlus className="h-3.5 w-3.5" aria-hidden="true" />
           New Chat
@@ -239,7 +239,7 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
               className={`max-w-[85%] lg:max-w-[75%] rounded-2xl px-5 py-3.5 text-sm leading-relaxed shadow-sm ${
                 msg.role === "user"
                   ? "bg-gradient-to-r from-brand-600 to-brand-500 text-white rounded-br-none"
-                  : "bg-white border border-slate-100 text-slate-700 rounded-bl-none"
+                  : "bg-surface border border-border-subtle text-text-primary rounded-bl-none"
               }`}
             >
               <ReactMarkdown 
@@ -260,7 +260,7 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
         
         {loading && (
           <div className="flex w-full justify-start">
-             <div role="status" aria-live="polite" className="bg-white border border-slate-100 rounded-2xl rounded-bl-none px-4 py-3 shadow-sm">
+             <div role="status" aria-live="polite" className="bg-surface border border-border-subtle rounded-2xl rounded-bl-none px-4 py-3 shadow-sm">
                <span className="sr-only">AI advisor is responding</span>
                <div className="flex gap-1" aria-hidden="true">
                  <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -273,7 +273,7 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-white border-t border-slate-100">
+      <div className="p-4 bg-surface border-t border-border-subtle">
         {lastFailedMessage && !loading && (
           <div className="flex justify-center mb-2">
             <button
@@ -303,7 +303,7 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
         
         <form
           onSubmit={(e) => handleSend(e)}
-          className="relative flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 focus-within:border-brand-300 focus-within:ring-2 focus-within:ring-brand-100 transition-all"
+          className="relative flex items-center gap-2 bg-surface-muted p-2 rounded-xl border border-border-subtle focus-within:border-brand-300 focus-within:ring-2 focus-within:ring-brand-100 transition-all"
         >
           <input
             ref={inputRef}
@@ -312,7 +312,7 @@ export default function ExploreChat({ sessionId, onSessionChange }: Props) {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about your academic journey..."
             aria-label="Message to AI advisor"
-	            className="flex-1 bg-transparent border-none outline-none focus:outline-none focus-visible:outline-none focus:ring-0 text-sm text-slate-800 placeholder:text-slate-400 px-2"
+	            className="flex-1 bg-transparent border-none outline-none focus:outline-none focus-visible:outline-none focus:ring-0 text-sm text-text-primary placeholder:text-text-secondary px-2"
             disabled={loading}
           />
           <button

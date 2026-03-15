@@ -112,6 +112,28 @@ describe('DegreeProgressCard', () => {
     expect(markup).toContain('Complete')
   })
 
+  // ── Dark mode ──────────────────────────────────────────────────────────────
+
+  it('renders without hard-coded bg-white class in dark theme', () => {
+    const markup = renderToStaticMarkup(
+      <DegreeProgressCard progress={72} totalCredits={120} earnedCredits={86.4} inProgressCredits={3} />,
+    )
+    expect(markup).not.toContain('bg-white')
+  })
+
+  it('no-evaluation state renders without hard-coded bg-white class in dark theme', () => {
+    const markup = renderToStaticMarkup(
+      <DegreeProgressCard
+        progress={0}
+        totalCredits={0}
+        earnedCredits={0}
+        inProgressCredits={0}
+        hasEvaluation={false}
+      />,
+    )
+    expect(markup).not.toContain('bg-white')
+  })
+
   describe('action buttons', () => {
     let container: HTMLDivElement
     let root: Root

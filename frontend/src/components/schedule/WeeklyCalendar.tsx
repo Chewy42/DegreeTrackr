@@ -89,10 +89,10 @@ export default function WeeklyCalendar({ classes, onRemoveClass, conflicts = {},
 	  const pixelsPerMinute = hourHeight / 60;
 
 		  return (
-		    <div className="flex flex-col h-full min-h-0 bg-white overflow-hidden relative">
+		    <div className="flex flex-col h-full min-h-0 bg-surface overflow-hidden relative">
 	      {/* Empty state overlay */}
 	      {scheduledClasses.length === 0 && (
-	        <div role="status" aria-live="polite" className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-white/80 backdrop-blur-sm pointer-events-none">
+	        <div role="status" aria-live="polite" className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-surface/80 backdrop-blur-sm pointer-events-none">
 	          <p className="text-base font-semibold text-slate-600">No classes added yet</p>
 	          <p className="text-sm text-slate-400 text-center max-w-xs px-4">
 	            Search for classes in the sidebar and add them to build your schedule.
@@ -104,11 +104,11 @@ export default function WeeklyCalendar({ classes, onRemoveClass, conflicts = {},
         <div className="min-w-[600px] flex flex-col"> {/* Min width to force horizontal scroll on small screens */}
 
             {/* Sticky Header */}
-            <div className="flex border-b border-slate-200 sticky top-0 z-20 bg-white shadow-sm">
-                <div className="w-16 shrink-0 bg-slate-50 border-r border-slate-200 sticky left-0 z-30" /> {/* Corner */}
+            <div className="flex border-b border-border-subtle sticky top-0 z-20 bg-surface shadow-sm">
+                <div className="w-16 shrink-0 bg-surface-muted border-r border-border-subtle sticky left-0 z-30" /> {/* Corner */}
                 {displayDays.map(day => (
-                <div key={day} className="flex-1 py-2 text-center border-r border-slate-200 last:border-r-0 bg-slate-50">
-                    <span className="text-sm font-semibold text-slate-700">{SHORT_DAY_NAMES[day]}</span>
+                <div key={day} className="flex-1 py-2 text-center border-r border-border-subtle last:border-r-0 bg-surface-muted">
+                    <span className="text-sm font-semibold text-text-secondary">{SHORT_DAY_NAMES[day]}</span>
                 </div>
                 ))}
             </div>
@@ -116,11 +116,11 @@ export default function WeeklyCalendar({ classes, onRemoveClass, conflicts = {},
 	            {/* Calendar Body */}
 		            <div className="flex" style={{ height: GRID_ROWS * hourHeight }}>
                 {/* Time Column - Sticky Left */}
-                <div className="w-16 shrink-0 border-r border-slate-200 bg-slate-50 select-none sticky left-0 z-10">
+                <div className="w-16 shrink-0 border-r border-border-subtle bg-surface-muted select-none sticky left-0 z-10">
 	                    {timeLabels.map(hour => (
                     <div 
                         key={hour} 
-                        className="relative border-b border-slate-100 text-xs text-slate-400 text-right pr-2 pt-1 bg-slate-50"
+                        className="relative border-b border-border-subtle text-xs text-text-secondary text-right pr-2 pt-1 bg-surface-muted"
 	                        style={{ height: hourHeight }}
                     >
                         {hour > 12 ? hour - 12 : hour} {hour >= 12 ? 'PM' : 'AM'}
@@ -130,7 +130,7 @@ export default function WeeklyCalendar({ classes, onRemoveClass, conflicts = {},
 
 	                {/* Days Columns */}
 	                {displayDays.map(day => (
-                    <div key={day} className="flex-1 relative border-r border-slate-200 last:border-r-0 min-w-[100px]">
+                    <div key={day} className="flex-1 relative border-r border-border-subtle last:border-r-0 min-w-[100px]">
 	                    {/* Grid Lines / Time Slots */}
 	                    {timeLabels.map(hour => (
 	                        <div
@@ -140,7 +140,7 @@ export default function WeeklyCalendar({ classes, onRemoveClass, conflicts = {},
 	                        aria-label={`Add class at ${DAY_NAMES[day]} ${formatHour(hour)}`}
 	                        data-slot-day={day}
 	                        data-slot-hour={hour}
-	                        className="border-b border-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400"
+	                        className="border-b border-border-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400"
 	                        style={{ height: hourHeight }}
 	                        onClick={() => onSlotClick?.(day, hour)}
 	                        onKeyDown={(e) => {

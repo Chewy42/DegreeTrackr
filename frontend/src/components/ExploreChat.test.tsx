@@ -229,4 +229,16 @@ describe('ExploreChat', () => {
     // response.session.id === currentSessionId → onSessionChange must not fire
     expect(onSessionChange).not.toHaveBeenCalled()
   })
+
+  // ── Dark mode ─────────────────────────────────────────────────────────────
+
+  it('renders without hard-coded bg-white class in dark theme', async () => {
+    document.documentElement.setAttribute('data-theme', 'dark')
+    await render()
+    const allClassNames = Array.from(container.querySelectorAll('[class]'))
+      .map(el => el.getAttribute('class') ?? '')
+      .join(' ')
+    expect(allClassNames).not.toContain('bg-white')
+    document.documentElement.removeAttribute('data-theme')
+  })
 })

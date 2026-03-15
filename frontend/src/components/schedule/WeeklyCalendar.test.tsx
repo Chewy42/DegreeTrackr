@@ -262,4 +262,16 @@ describe('WeeklyCalendar', () => {
     expect(classBlock).not.toBeNull()
     expect(classBlock!.tabIndex).toBe(0)
   })
+
+  // ── Dark mode ─────────────────────────────────────────────────────────────
+
+  it('renders without hard-coded bg-white class in dark theme', async () => {
+    document.documentElement.setAttribute('data-theme', 'dark')
+    await renderCalendar([CLASS_A])
+    const allClassNames = Array.from(container.querySelectorAll('[class]'))
+      .map(el => el.getAttribute('class') ?? '')
+      .join(' ')
+    expect(allClassNames).not.toContain('bg-white')
+    document.documentElement.removeAttribute('data-theme')
+  })
 })

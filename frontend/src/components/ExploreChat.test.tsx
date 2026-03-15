@@ -230,6 +230,16 @@ describe('ExploreChat', () => {
     expect(onSessionChange).not.toHaveBeenCalled()
   })
 
+  it('renders user and assistant messages in the list after a successful send', async () => {
+    await render()
+    const suggestionBtn = getBtn('What can I do with my major?')!
+    await act(async () => { suggestionBtn.click() })
+
+    // SEND_RESULT contains a user message and an assistant reply
+    expect(container.textContent).toContain('What can I do with my major?')
+    expect(container.textContent).toContain('Great question!')
+  })
+
   // ── Dark mode ─────────────────────────────────────────────────────────────
 
   it('renders without hard-coded bg-white class in dark theme', async () => {

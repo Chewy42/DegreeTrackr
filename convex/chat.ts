@@ -13,6 +13,7 @@ const onboardingAnswersValidator = v.object({
   priority: v.optional(v.union(v.literal('major'), v.literal('electives'), v.literal('graduate'))),
 })
 
+const checkExploreRateLimitRef = makeFunctionReference<'query', Record<string, never>, { allowed: boolean }>('chat:checkExploreRateLimit')
 const getCurrentChatSessionRef = makeFunctionReference<'query', { sessionId: string }, ChatSessionDetail | null>('chat:getCurrentChatSession')
 const syncCurrentChatSessionFromLegacyRef = makeFunctionReference<
   'mutation',
@@ -204,8 +205,6 @@ export const getCurrentOnboardingFlowState = queryGeneric({
   },
 })
 
-// RATE LIMIT: syncCurrentChatSessionFromLegacy should be rate-limited per user once
-// native Convex rate limiting is wired in (high write volume during migration).
 export const syncCurrentChatSessionFromLegacy = mutationGeneric({
   args: {
     scope: chatScopeValidator,
@@ -412,8 +411,37 @@ export const hydrateCurrentChatSessionsFromLegacy = actionGeneric({
   },
 })
 
-// RATE LIMIT: sendCurrentExploreMessage must be rate-limited per user (e.g. 10 req/min)
-// before this function is exposed beyond the legacy bridge path.
+const EXPLORE_RATE_LIMIT_WINDOW_MS = 60_000
+const EXPLORE_RATE_LIMIT_MAX = 10
+
+export const checkExploreRateLimit = queryGeneric({
+  args: {},
+  handler: async (ctx) => {
+    const { user } = await getCurrentUserState(ctx)
+    if (!user) return { allowed: true }
+
+    const windowStart = Date.now() - EXPLORE_RATE_LIMIT_WINDOW_MS
+    const sessions = await ctx.db
+      .query('chatSessions')
+      .withIndex('by_userId_and_scope', (query: any) => query.eq('userId', user._id).eq('scope', 'explore'))
+      .collect()
+
+    let recentUserMessages = 0
+    for (const session of sessions) {
+      if (session.archivedAt) continue
+      const messages = await ctx.db
+        .query('chatMessages')
+        .withIndex('by_sessionId_and_createdAt', (query: any) =>
+          query.eq('sessionId', session._id).gte('createdAt', windowStart),
+        )
+        .collect()
+      recentUserMessages += messages.filter((m: any) => m.sender === 'user').length
+    }
+
+    return { allowed: recentUserMessages < EXPLORE_RATE_LIMIT_MAX }
+  },
+})
+
 export const sendCurrentExploreMessage = actionGeneric({
   args: {
     ...legacyHydrationArgsValidator,
@@ -427,18 +455,29 @@ export const sendCurrentExploreMessage = actionGeneric({
     if (args.message.length > 10_000) {
       throw new ConvexError('Message exceeds 10,000 character limit.')
     }
+
+    const rateCheck = await ctx.runQuery(checkExploreRateLimitRef, {})
+    if (!rateCheck.allowed) {
+      throw new ConvexError('You are sending messages too quickly. Please wait a moment and try again.')
+    }
+
     const existingSession = args.sessionId ? await ctx.runQuery(getCurrentChatSessionRef, { sessionId: args.sessionId }) : null
 
-    const response = await requestLegacyJson<LegacyChatResponse>('/chat/explore', args, {
-      method: 'POST',
-      body: JSON.stringify({
-        message: args.message,
-        ...(existingSession?.session.legacySessionId ? { session_id: existingSession.session.legacySessionId } : {}),
-      }),
-    })
+    let response: LegacyChatResponse | null
+    try {
+      response = await requestLegacyJson<LegacyChatResponse>('/chat/explore', args, {
+        method: 'POST',
+        body: JSON.stringify({
+          message: args.message,
+          ...(existingSession?.session.legacySessionId ? { session_id: existingSession.session.legacySessionId } : {}),
+        }),
+      })
+    } catch {
+      throw new ConvexError('Sorry, something went wrong while contacting the AI advisor. Please try again.')
+    }
 
     if (!response?.session_id) {
-      throw new Error('Legacy explore bridge did not return a session identifier.')
+      throw new ConvexError('The AI advisor did not return a valid response. Please try again.')
     }
 
     const syncedSession = await ctx.runMutation(syncCurrentChatSessionFromLegacyRef, {

@@ -294,10 +294,17 @@ export default function GPATrendChart({ courses }: GPATrendChartProps) {
       <div className="mt-4 pt-3 border-t border-slate-100 space-y-3">
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center">
-            <div className="text-lg font-bold text-blue-600">
+            <div className="text-lg font-bold text-blue-600 flex items-center justify-center gap-1">
               {chartData.length > 0
                 ? (chartData[chartData.length - 1]?.termGpa ?? 0).toFixed(2)
                 : "—"}
+              {chartData.length >= 2 && (() => {
+                const curr = chartData[chartData.length - 1]!.cumulativeGpa;
+                const prev = chartData[chartData.length - 2]!.cumulativeGpa;
+                if (curr > prev) return <span className="text-emerald-500 text-sm gpa-trend-up" aria-label="GPA trending up">↑</span>;
+                if (curr < prev) return <span className="text-red-500 text-sm gpa-trend-down" aria-label="GPA trending down">↓</span>;
+                return null;
+              })()}
             </div>
             <div className="text-[10px] text-slate-500 uppercase tracking-wide">Latest Term</div>
           </div>

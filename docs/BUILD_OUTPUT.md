@@ -207,3 +207,15 @@
   - perf: ScheduleBuilder addedClassIds + conflictMap wrapped in useMemo
   - No Convex strict-eq bugs found in DT
   - No-ops: GPA edge case, ExploreChat double-send guard, ChatHistorySidebar reactivity, rate limit consistency, OnboardingChat required fields, WeeklyCalendar conflict highlighting, ScheduleConflictBanner stale state
+
+## Wave 30 Complete (2026-03-15 08:44 AM) — Cleanup & Hardening
+- **Build**: PASS (1.33s, CI=true, 0 TS errors)
+- **Test files**: 167
+- **Full test suite**: 165 files, 1327 tests, 0 failures, ~13 seconds ✅
+- **Wave 30 audits (all passed)**:
+  - Auth guards: present on all user-facing mutations
+  - Schema indexes: comprehensive for all query patterns
+  - usePageTitle: all major pages covered
+  - console statements: 29 (acceptable — error handlers)
+  - Evaluation replace: properly deletes old before inserting new
+  - Memory distilled: daily notes + working.md updated

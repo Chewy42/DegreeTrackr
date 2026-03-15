@@ -194,3 +194,8 @@
 - **Build**: PASS (1.29s, CI=true, 0 TS errors)
 - **Test files**: 167
 - **Wave 28 additions**: DT239 evaluationReupload, DT240-DT242 confirmed passing (scheduleApi/xss-prevention/usePageTitle). DT243/DT247 health check partial (individual pass, full-suite hangs). DT244-DT246 deferred (ExploreChat/OnboardingChat/EmailConfirmation need E2E). DT248 = this entry
+
+## Wave 29 Complete (2026-03-15 08:23 AM)
+- **Build**: PASS (1.36s, CI=true, 0 TS errors)
+- **Test files**: 167 (unchanged — wave was product/UX focused)
+- **Wave 29 changes**: ScheduleBuilder useMemo perf fix. All UX/code audits passed with no additional changes needed.

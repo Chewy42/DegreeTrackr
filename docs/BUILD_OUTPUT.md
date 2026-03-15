@@ -84,3 +84,8 @@
 - **Build:** Clean, no chunks > 500 kB
 - DT92: WeeklyCalendar React.memo performance test — 24-class render-count verification, reference identity behavior documentation
 - DT93: Final build and health check — all 646 tests green, production build clean
+
+## Wave 12 Summary (2026-03-14)
+- **Build**: PASS (1.27s, CI=true, 0 TS errors)
+- **Test files**: 98 (all passing as of DT128)
+- **Wave 12 changes**: DT120 snapshots, DT121 profiles CRUD, DT122 full journey E2E, DT123 AppThemeProvider, DT124 chat history CRUD, DT125 concurrent user isolation, DT126 AI recommendations, DT127 GPATrendChart regression, DT128 evaluation error handling, DT129 this final

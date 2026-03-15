@@ -1,6 +1,31 @@
 # Build Output — DegreeTrackr Frontend
 
-## Latest verification — Wave 10 extended
+## Latest verification — Wave 11
+
+- **Build date:** 2026-03-14
+- **Wave:** 11 (final)
+- **Result:** PASS
+- **Build time:** 1.52s
+- **TypeScript:** Clean (`tsc --noEmit` — 0 errors)
+- **Tests:** 775 passed, 2 skipped, 8 timeout (84 test files; 82 passed, 2 pre-existing timeout failures in DT114/DT115)
+- **Chunks > 500 kB:** None
+
+### Wave 11 summary (DT110–DT119)
+
+- DT110: Schedule builder E2E — add/remove course Playwright flow
+- DT111: Progress page E2E — GPA/credits/requirements display verification
+- DT112: Multi-user data isolation — per-entity security tests (profile/schedule/eval/snapshots)
+- DT113: Export integrity — schedule JSON/CSV roundtrip + special character escaping
+- DT114: Data persistence — schedule/chat data survives remount (timeout-limited)
+- DT115: Network failure graceful degradation (timeout-limited)
+- DT116: Convex evaluations write-then-read pipeline + stale-free verification
+- DT117: Keyboard Tab/Enter/focus order E2E navigation
+- DT118: ExploreClassesSidebar 200-item large dataset performance — render cap, show-more pagination, search filter
+- DT119: Wave 11 final build verification
+
+---
+
+## Wave 10 extended
 
 - **Build date:** 2026-03-14
 - **Wave:** 10 extended (final)

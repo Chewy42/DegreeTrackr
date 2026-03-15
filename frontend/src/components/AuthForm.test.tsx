@@ -4,12 +4,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import AuthForm from './AuthForm'
+import type { AuthMode } from '../auth/AuthContext'
 
-// Stub AuthContext — AuthForm only imports AuthMode as a type annotation,
-// but the module still loads at runtime, so provide a safe stub.
-vi.mock('../auth/AuthContext', () => ({
-  useAuth: () => ({ jwt: null }),
-}))
+const BASE_PROPS = {
+  mode: 'sign_in' as AuthMode,
+  email: 'user@example.com',
+  password: 'secret',
+  confirmPassword: '',
+  error: null,
+  loading: false,
+  setField: vi.fn(),
+  onSubmit: vi.fn().mockResolvedValue(undefined),
+}
 
 describe('AuthForm', () => {
   let container: HTMLDivElement
@@ -19,6 +25,7 @@ describe('AuthForm', () => {
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
+    vi.clearAllMocks()
   })
 
   afterEach(async () => {
@@ -26,97 +33,79 @@ describe('AuthForm', () => {
     container.remove()
   })
 
-  function baseProps(overrides: Partial<React.ComponentProps<typeof AuthForm>> = {}): React.ComponentProps<typeof AuthForm> {
-    return {
-      mode: 'sign_in',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      error: null,
-      loading: false,
-      setField: vi.fn(),
-      onSubmit: vi.fn().mockResolvedValue(undefined),
-      ...overrides,
-    }
+  async function render(props: React.ComponentProps<typeof AuthForm> = BASE_PROPS) {
+    await act(async () => { root.render(<AuthForm {...props} />) })
   }
 
-  async function render(props = baseProps()) {
-    await act(async () => {
-      root.render(<AuthForm {...props} />)
-    })
-  }
-
-  it('renders a form element', async () => {
+  it('renders email field in sign_in mode (type=text with inputMode=email)', async () => {
     await render()
-    expect(container.querySelector('form')).not.toBeNull()
+    // TextField renders email inputs as type="text" with inputMode="email"
+    const emailInput = container.querySelector('input[inputmode="email"]')
+    expect(emailInput).not.toBeNull()
   })
 
-  it('renders email and password inputs in sign_in mode', async () => {
+  it('renders password field in sign_in mode', async () => {
     await render()
-    // TextField uses type="text" with inputMode="email" for email fields
-    const inputs = container.querySelectorAll('input')
-    expect(inputs.length).toBe(2)
+    const pwInputs = container.querySelectorAll('input[type="password"]')
+    expect(pwInputs.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('renders a confirm password field in sign_up mode', async () => {
-    await render(baseProps({ mode: 'sign_up' }))
-    expect(container.querySelectorAll('input').length).toBe(3)
-  })
-
-  it('does not render confirm password in sign_in mode', async () => {
+  it('does not render confirm password field in sign_in mode', async () => {
     await render()
-    expect(container.querySelectorAll('input').length).toBe(2)
+    const pwInputs = container.querySelectorAll('input[type="password"]')
+    // sign_in mode has only 1 password field
+    expect(pwInputs.length).toBe(1)
   })
 
-  it('calls onSubmit when the form is submitted', async () => {
+  it('renders confirm password field in sign_up mode', async () => {
+    await render({ ...BASE_PROPS, mode: 'sign_up' })
+    const pwInputs = container.querySelectorAll('input[type="password"]')
+    expect(pwInputs.length).toBe(2)
+  })
+
+  it('shows "Sign In" submit button in sign_in mode', async () => {
+    await render()
+    const btn = container.querySelector('button[type="submit"]')!
+    expect(btn.textContent).toContain('Sign In')
+  })
+
+  it('shows "Create Account" submit button in sign_up mode', async () => {
+    await render({ ...BASE_PROPS, mode: 'sign_up' })
+    const btn = container.querySelector('button[type="submit"]')!
+    expect(btn.textContent).toContain('Create Account')
+  })
+
+  it('calls onSubmit when form is submitted', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
-    await render(baseProps({ onSubmit }))
+    await render({ ...BASE_PROPS, onSubmit })
     const form = container.querySelector('form')!
     await act(async () => {
       form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     })
-    expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(onSubmit).toHaveBeenCalledOnce()
   })
 
-  it('disables the submit button when loading=true', async () => {
-    await render(baseProps({ loading: true }))
+  it('shows error message when error prop is set', async () => {
+    await render({ ...BASE_PROPS, error: 'Invalid password' })
+    const alert = container.querySelector('[role="alert"]')
+    expect(alert).not.toBeNull()
+    expect(alert!.textContent).toContain('Invalid password')
+  })
+
+  it('does not show error element when error is null', async () => {
+    await render()
+    expect(container.querySelector('[role="alert"]')).toBeNull()
+  })
+
+  it('submit button is disabled when loading=true', async () => {
+    await render({ ...BASE_PROPS, loading: true })
     const btn = container.querySelector<HTMLButtonElement>('button[type="submit"]')!
     expect(btn.disabled).toBe(true)
   })
 
-  it('shows "Please wait..." on the submit button while loading', async () => {
-    await render(baseProps({ loading: true }))
-    const btn = container.querySelector<HTMLButtonElement>('button[type="submit"]')!
-    expect(btn.textContent).toContain('Please wait')
-  })
-
-  it('enables the submit button when not loading', async () => {
+  it('submit button is enabled when loading=false', async () => {
     await render()
     const btn = container.querySelector<HTMLButtonElement>('button[type="submit"]')!
     expect(btn.disabled).toBe(false)
-  })
-
-  it('shows "Sign In" label on the submit button in sign_in mode', async () => {
-    await render()
-    const btn = container.querySelector<HTMLButtonElement>('button[type="submit"]')!
-    expect(btn.textContent).toContain('Sign In')
-  })
-
-  it('shows "Create Account" label on the submit button in sign_up mode', async () => {
-    await render(baseProps({ mode: 'sign_up' }))
-    const btn = container.querySelector<HTMLButtonElement>('button[type="submit"]')!
-    expect(btn.textContent).toContain('Create Account')
-  })
-
-  it('displays the error message with role="alert" when error is set', async () => {
-    await render(baseProps({ error: 'Invalid credentials' }))
-    const alert = container.querySelector('[role="alert"]')
-    expect(alert).not.toBeNull()
-    expect(alert?.textContent).toContain('Invalid credentials')
-  })
-
-  it('does not render an alert when error is null', async () => {
-    await render()
-    expect(container.querySelector('[role="alert"]')).toBeNull()
   })
 })

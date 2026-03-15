@@ -26,78 +26,79 @@ describe('AuthInput', () => {
     })
   }
 
-  it('renders the label text', async () => {
-    await render({ label: 'Email Address', value: '', onChange: vi.fn() })
-    expect(container.querySelector('label')?.textContent).toContain('Email Address')
+  it('renders a label with the provided text', async () => {
+    await render({ label: 'Email', value: '', onChange: vi.fn() })
+    expect(container.textContent).toContain('Email')
+    expect(container.querySelector('label')).not.toBeNull()
   })
 
-  it('links the label to the input via htmlFor / id', async () => {
-    await render({ label: 'Email Address', value: '', onChange: vi.fn() })
-    const labelFor = container.querySelector('label')?.getAttribute('for')
-    const inputId = container.querySelector('input')?.id
-    expect(labelFor).toBe(inputId)
-    expect(inputId).toBeTruthy()
+  it('renders an input with the provided value', async () => {
+    await render({ label: 'Email', value: 'user@example.com', onChange: vi.fn() })
+    const input = container.querySelector('input')!
+    expect(input.value).toBe('user@example.com')
   })
 
-  it('derives the id from the label when name is omitted', async () => {
-    await render({ label: 'Email Address', value: '', onChange: vi.fn() })
-    expect(container.querySelector('input')?.id).toBe('email-address')
+  it('defaults to type="email"', async () => {
+    await render({ label: 'Email', value: '', onChange: vi.fn() })
+    expect(container.querySelector('input')!.type).toBe('email')
   })
 
-  it('uses the name prop as the input id when provided', async () => {
-    await render({ label: 'Email Address', name: 'user-email', value: '', onChange: vi.fn() })
-    expect(container.querySelector('input')?.id).toBe('user-email')
+  it('uses type="password" when specified', async () => {
+    await render({ label: 'Password', type: 'password', value: '', onChange: vi.fn() })
+    expect(container.querySelector('input')!.type).toBe('password')
   })
 
-  it('reflects the current value', async () => {
-    await render({ label: 'Email', value: 'test@example.com', onChange: vi.fn() })
-    expect(container.querySelector<HTMLInputElement>('input')?.value).toBe('test@example.com')
-  })
-
-  it('calls onChange with the new value when the user types', async () => {
+  it('calls onChange with the new value when input changes', async () => {
     const onChange = vi.fn()
     await render({ label: 'Email', value: '', onChange })
-    const input = container.querySelector<HTMLInputElement>('input')!
-    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+    const input = container.querySelector('input')!
     await act(async () => {
-      nativeSetter?.call(input, 'typed@example.com')
-      input.dispatchEvent(new Event('input', { bubbles: true }))
+      Object.defineProperty(input, 'value', { writable: true, value: 'new@example.com' })
+      input.dispatchEvent(new Event('change', { bubbles: true }))
     })
-    expect(onChange).toHaveBeenCalledWith('typed@example.com')
+    expect(onChange).toHaveBeenCalledWith('new@example.com')
   })
 
-  it('marks the input as required by default', async () => {
-    await render({ label: 'Email', value: '', onChange: vi.fn() })
-    expect(container.querySelector('input')?.required).toBe(true)
+  it('renders placeholder text', async () => {
+    await render({ label: 'Email', value: '', onChange: vi.fn(), placeholder: 'you@example.com' })
+    expect(container.querySelector('input')!.placeholder).toBe('you@example.com')
   })
 
-  it('marks the input as not required when required=false', async () => {
-    await render({ label: 'Email', value: '', onChange: vi.fn(), required: false })
-    expect(container.querySelector('input')?.required).toBe(false)
-  })
-
-  it('defaults to email input type', async () => {
-    await render({ label: 'Email', value: '', onChange: vi.fn() })
-    expect(container.querySelector('input')?.type).toBe('email')
-  })
-
-  it('renders password type when type="password"', async () => {
-    await render({ label: 'Password', value: '', onChange: vi.fn(), type: 'password' })
-    expect(container.querySelector('input')?.type).toBe('password')
-  })
-
-  it('renders the icon when provided', async () => {
+  it('renders icon when provided', async () => {
     await render({
       label: 'Email',
       value: '',
       onChange: vi.fn(),
-      icon: <span data-testid="icon">@</span>,
+      icon: <span data-testid="icon">✉</span>,
     })
     expect(container.querySelector('[data-testid="icon"]')).not.toBeNull()
   })
 
-  it('does not render an icon wrapper when icon is omitted', async () => {
+  it('does not render icon area when icon is not provided', async () => {
     await render({ label: 'Email', value: '', onChange: vi.fn() })
-    expect(container.querySelector('[aria-hidden="true"]')).toBeNull()
+    expect(container.querySelector('[aria-hidden]')).toBeNull()
+  })
+
+  it('generates inputId from label (lowercased, spaces → dashes)', async () => {
+    await render({ label: 'Full Name', value: '', onChange: vi.fn() })
+    const input = container.querySelector('input')!
+    expect(input.id).toBe('full-name')
+    const label = container.querySelector('label')!
+    expect(label.getAttribute('for')).toBe('full-name')
+  })
+
+  it('uses name prop as inputId when provided', async () => {
+    await render({ label: 'Email', value: '', onChange: vi.fn(), name: 'user-email' })
+    expect(container.querySelector('input')!.id).toBe('user-email')
+  })
+
+  it('sets required attribute by default', async () => {
+    await render({ label: 'Email', value: '', onChange: vi.fn() })
+    expect(container.querySelector('input')!.required).toBe(true)
+  })
+
+  it('does not set required when required=false', async () => {
+    await render({ label: 'Email', value: '', onChange: vi.fn(), required: false })
+    expect(container.querySelector('input')!.required).toBe(false)
   })
 })

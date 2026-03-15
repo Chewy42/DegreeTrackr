@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 
 // ── Mock Convex db + auth ctx builder ──────────────────────────────────────
 
@@ -107,6 +107,8 @@ describe('multi-user data isolation (per entity)', () => {
     vi.useFakeTimers()
     vi.setSystemTime(NOW)
   })
+
+  afterEach(() => { vi.useRealTimers() })
 
   // ── Profile isolation ──────────────────────────────────────────────────
 

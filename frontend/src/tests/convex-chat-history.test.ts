@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 
 // ── Mock Convex db + auth ctx builder ──────────────────────────────────────
 
@@ -118,6 +118,8 @@ describe('convex/chat message history CRUD', () => {
     vi.useFakeTimers()
     vi.setSystemTime(NOW)
   })
+
+  afterEach(() => { vi.useRealTimers() })
 
   // Helper: seed a user profile + sync a session with N messages
   async function seedSession(

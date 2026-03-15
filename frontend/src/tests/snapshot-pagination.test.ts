@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 
 // ── Mock Convex db + auth ctx builder ──────────────────────────────────────
 
@@ -101,6 +101,8 @@ describe('snapshot pagination — list / filter / delete / auth', () => {
     vi.useFakeTimers()
     vi.setSystemTime(NOW)
   })
+
+  afterEach(() => { vi.useRealTimers() })
 
   it('create 3 snapshots → listSnapshots returns all 3 newest-first', async () => {
     const { create, list } = await getSnapshotHandlers()

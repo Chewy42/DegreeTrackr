@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 
 // ── Mock Convex db + auth ctx builder ──────────────────────────────────────
 
@@ -111,6 +111,8 @@ describe('convex/evaluations write-then-read pipeline', () => {
     vi.useFakeTimers()
     vi.setSystemTime(NOW)
   })
+
+  afterEach(() => { vi.useRealTimers() })
 
   function makeUserProfile(): UserProfileRecord {
     return { _id: USER_ID, clerkUserId: CLERK_SUBJECT, primaryEmail: 'test@example.com' }

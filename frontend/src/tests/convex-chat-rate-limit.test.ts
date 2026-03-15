@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { ConvexError } from 'convex/values'
 
 // ── Mock Convex db + auth ctx builder ──────────────────────────────────────
@@ -149,6 +149,8 @@ describe('convex/chat rate limit + auth guard', () => {
     vi.useFakeTimers()
     vi.setSystemTime(NOW)
   })
+
+  afterEach(() => { vi.useRealTimers() })
 
   // Dynamically import so mocks are resolved
   async function getHandlers() {

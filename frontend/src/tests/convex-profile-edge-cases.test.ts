@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { ConvexError } from 'convex/values'
 
 // ── Mock Convex db + auth ctx builder ──────────────────────────────────────
@@ -105,6 +105,8 @@ describe('convex/profile edge cases', () => {
     vi.useFakeTimers()
     vi.setSystemTime(NOW)
   })
+
+  afterEach(() => { vi.useRealTimers() })
 
   async function getHandlers() {
     const mod = await import('../../../convex/profile')

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react'
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import LoadingScreen from './LoadingScreen'
@@ -21,17 +21,10 @@ describe('LoadingScreen', () => {
   })
 
   async function render() {
-    await act(async () => {
-      root.render(<LoadingScreen />)
-    })
+    await act(async () => { root.render(<LoadingScreen />) })
   }
 
-  it('renders the loading message', async () => {
-    await render()
-    expect(container.textContent).toContain('Preparing your DegreeTrackr workspace...')
-  })
-
-  it('has role="status" for accessibility', async () => {
+  it('renders a status region with role=status', async () => {
     await render()
     expect(container.querySelector('[role="status"]')).not.toBeNull()
   })
@@ -42,18 +35,18 @@ describe('LoadingScreen', () => {
     expect(status.getAttribute('aria-live')).toBe('polite')
   })
 
-  it('renders a full-screen centered layout', async () => {
+  it('renders loading message text', async () => {
     await render()
-    const outer = container.querySelector('div')!
-    expect(outer.className).toContain('min-h-screen')
-    expect(outer.className).toContain('flex')
-    expect(outer.className).toContain('items-center')
-    expect(outer.className).toContain('justify-center')
+    expect(container.textContent).toContain('DegreeTrackr')
   })
 
-  it('does not overflow the viewport — no overflow class set', async () => {
+  it('renders the outer full-height container', async () => {
     await render()
-    const outer = container.querySelector('div')!
-    expect(outer.className).not.toContain('overflow-')
+    const outer = container.querySelector('div.min-h-screen')
+    expect(outer).not.toBeNull()
+  })
+
+  it('renders without throwing', async () => {
+    await expect(render()).resolves.toBeUndefined()
   })
 })

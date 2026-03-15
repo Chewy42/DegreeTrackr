@@ -288,6 +288,70 @@ describe('ProgramEvaluationUpload', () => {
     expect(getUploadButton()?.disabled).toBe(false)
   })
 
+  // ── Oversized file rejection ────────────────────────────────────────────
+
+  it('rejects files over 50 MB with an inline error and disables upload', async () => {
+    await render()
+    await selectFile(new MockFile('massive.pdf', 55))
+    expect(container.textContent).toContain('50 MB limit')
+    expect(getUploadButton()?.disabled).toBe(true)
+  })
+
+  // ── Parse error friendly message ──────────────────────────────────────
+
+  it('shows friendly parse error when upload fails with a parse-related message', async () => {
+    mocks.replaceCurrentProgramEvaluationFromUpload.mockRejectedValue(
+      new Error('Unable to upload file.'),
+    )
+    await render()
+    await selectFile(new MockFile('eval.pdf', 1))
+
+    await act(async () => {
+      getUploadButton()?.click()
+    })
+    await act(async () => {})
+
+    const alertEl = container.querySelector('[role="alert"]')
+    expect(alertEl?.textContent).toContain(
+      'Could not read your evaluation. Please try a different file.',
+    )
+    expect(getUploadButton()?.disabled).toBe(false)
+  })
+
+  it('shows friendly parse error for PDF extraction failures', async () => {
+    mocks.replaceCurrentProgramEvaluationFromUpload.mockRejectedValue(
+      new Error('Failed to parse PDF document'),
+    )
+    await render()
+    await selectFile(new MockFile('eval.pdf', 1))
+
+    await act(async () => {
+      getUploadButton()?.click()
+    })
+    await act(async () => {})
+
+    const alertEl = container.querySelector('[role="alert"]')
+    expect(alertEl?.textContent).toContain(
+      'Could not read your evaluation. Please try a different file.',
+    )
+  })
+
+  it('preserves specific non-parse error messages (e.g., file size limit)', async () => {
+    mocks.replaceCurrentProgramEvaluationFromUpload.mockRejectedValue(
+      new Error('File size exceeds the 50 MB limit.'),
+    )
+    await render()
+    await selectFile(new MockFile('eval.pdf', 1))
+
+    await act(async () => {
+      getUploadButton()?.click()
+    })
+    await act(async () => {})
+
+    const alertEl = container.querySelector('[role="alert"]')
+    expect(alertEl?.textContent).toContain('File size exceeds the 50 MB limit.')
+  })
+
   // ── Convex unavailable ──────────────────────────────────────────────────
 
   it('shows an error when the Convex client is unavailable', async () => {

@@ -38,6 +38,12 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
       return;
     }
     const MB = 1024 * 1024;
+    if (candidate.size > 50 * MB) {
+      setError("File size exceeds the 50 MB limit.");
+      setFile(null);
+      setSizeWarning(null);
+      return;
+    }
     setSizeWarning(
       candidate.size > 20 * MB
         ? `File is ${(candidate.size / MB).toFixed(1)} MB — very large PDFs may fail to upload. Try compressing the PDF first.`
@@ -107,7 +113,15 @@ export default function ProgramEvaluationUpload({ onSuccess }: Props) {
         return;
       }
 
-      setError(err instanceof Error ? err.message : "Unable to upload file.");
+      const rawMsg = err instanceof Error ? err.message : "";
+      const isParseError =
+        /parse|extract|corrupt|invalid.*pdf|unable to upload/i.test(rawMsg) ||
+        rawMsg === "Unable to upload file.";
+      setError(
+        isParseError
+          ? "Could not read your evaluation. Please try a different file."
+          : rawMsg || "Unable to upload file.",
+      );
       setUploadState("idle");
     }
   };

@@ -126,3 +126,7 @@
 ## Wave 16+17 Combined Summary (2026-03-15)
 - **Build**: PASS (1.31s, CI=true, 0 TS errors)
 - **Wave 16+17 additions**: DT154 snapshot pagination, DT155 multi-semester, DT156 academic calendar, DT157 W15+16 final, DT158 prerequisites, DT159 transcript import, DT160 notification prefs, DT161 degree template, DT162 this final
+
+## Wave 18 Summary (2026-03-15)
+- **Build**: PASS (1.50s, CI=true, 0 TS errors)
+- **Wave 18 additions**: DT163 timeline, DT164 GPA projection, DT165 chat pagination, DT166 avatar upload, DT167 this final

@@ -1,5 +1,9 @@
 # Build Output — DegreeTrackr Frontend
 
+## Wave 20 Extended Summary (2026-03-15)
+- Build: PASS (1.25s, CI=true, 0 TS errors)
+- Wave 20 extended additions: DT173 RequirementItem card tests (name/credits/complete/in-progress/not-started), DT174 this final
+
 ## Wave 14 Summary (2026-03-15)
 - Build: PASS (CI=true, 0 TS errors)
 - Wave 14 additions: DT140 userState, DT141 undo/redo, DT142 degree audit, DT143 13+14 final, DT144 chat persist, DT145 GPA weighted, DT146 onboarding skip, DT147 this final
@@ -138,3 +142,7 @@
 ## Wave 20 Summary (2026-03-15)
 - **Build**: PASS (1.41s, CI=true, 0 TS errors)
 - **Wave 20 additions**: DT171 course search/filter/sort, DT172 this final
+
+## Wave 20 Extended Summary (2026-03-15)
+- **Build**: PASS (CI=true, 0 TS errors)
+- **Wave 20 ext additions**: DT173 RequirementCard, DT174 this final

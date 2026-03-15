@@ -242,6 +242,77 @@ export const hydrateCurrentSchedulingPreferencesFromLegacy = actionGeneric({
   },
 })
 
+// ── Account deletion cascade ──────────────────────────────────────────────
+
+export const deleteCurrentUserAccount = mutationGeneric({
+  args: {},
+  handler: async (ctx): Promise<{ deleted: true }> => {
+    const { user } = await ensureCurrentUserRecord(ctx)
+    const userId = user._id
+
+    // Delete chat messages for all user sessions, then sessions themselves
+    const sessions = await ctx.db
+      .query('chatSessions')
+      .withIndex('by_userId', (q: any) => q.eq('userId', userId))
+      .collect()
+    for (const session of sessions) {
+      const messages = await ctx.db
+        .query('chatMessages')
+        .withIndex('by_sessionId_and_createdAt', (q: any) => q.eq('sessionId', session._id))
+        .collect()
+      for (const msg of messages) {
+        await ctx.db.delete(msg._id)
+      }
+      await ctx.db.delete(session._id)
+    }
+
+    // Delete program evaluations
+    const evaluations = await ctx.db
+      .query('programEvaluations')
+      .withIndex('by_userId', (q: any) => q.eq('userId', userId))
+      .collect()
+    for (const ev of evaluations) {
+      await ctx.db.delete(ev._id)
+    }
+
+    // Delete schedule snapshots (keyed by Clerk user ID string)
+    const clerkUserId = user.clerkUserId as string
+    const snapshots = await ctx.db
+      .query('scheduleSnapshots')
+      .withIndex('by_userId', (q: any) => q.eq('userId', clerkUserId))
+      .collect()
+    for (const snap of snapshots) {
+      await ctx.db.delete(snap._id)
+    }
+
+    // Delete schedule drafts (keyed by Clerk user ID string)
+    const drafts = await ctx.db
+      .query('scheduleDrafts')
+      .withIndex('by_userId', (q: any) => q.eq('userId', clerkUserId))
+      .collect()
+    for (const draft of drafts) {
+      await ctx.db.delete(draft._id)
+    }
+
+    // Delete scheduling preferences
+    const schedPrefs = await getSchedulingPreferencesRecord(ctx, userId)
+    if (schedPrefs) {
+      await ctx.db.delete(schedPrefs._id)
+    }
+
+    // Delete user preferences
+    const userPrefs = await getUserPreferencesRecord(ctx, userId)
+    if (userPrefs) {
+      await ctx.db.delete(userPrefs._id)
+    }
+
+    // Delete the user profile itself
+    await ctx.db.delete(userId)
+
+    return { deleted: true }
+  },
+})
+
 // ── Onboarding completion ──────────────────────────────────────────────────
 
 export const completeCurrentOnboarding = mutationGeneric({

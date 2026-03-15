@@ -3,7 +3,7 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import WeeklyCalendar from './WeeklyCalendar'
+import WeeklyCalendar, { WeeklyCalendarUnmemoized } from './WeeklyCalendar'
 import type { ScheduledClass } from './types'
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
@@ -273,5 +273,47 @@ describe('WeeklyCalendar', () => {
       .join(' ')
     expect(allClassNames).not.toContain('bg-white')
     document.documentElement.removeAttribute('data-theme')
+  })
+
+  // ── React.memo re-render prevention ─────────────────────────────────────
+
+  it('does not re-render when unrelated parent state changes (React.memo)', async () => {
+    let calendarRenderCount = 0
+
+    function RenderSpy(props: React.ComponentPropsWithoutRef<typeof WeeklyCalendarUnmemoized>) {
+      calendarRenderCount++
+      return <WeeklyCalendarUnmemoized {...props} />
+    }
+
+    const MemoSpy = React.memo(RenderSpy)
+
+    const onRemoveClass = vi.fn()
+    const stableClasses: ScheduledClass[] = [CLASS_A]
+    const stableConflicts: Record<string, string> = {}
+
+    function Parent() {
+      const [unrelated, setUnrelated] = React.useState(0)
+      return (
+        <>
+          <button data-testid="bump" onClick={() => setUnrelated(n => n + 1)}>
+            {unrelated}
+          </button>
+          <MemoSpy
+            classes={stableClasses}
+            onRemoveClass={onRemoveClass}
+            conflicts={stableConflicts}
+          />
+        </>
+      )
+    }
+
+    await act(async () => { root.render(<Parent />) })
+    const initialCount = calendarRenderCount
+
+    // Trigger unrelated parent state change
+    const bumpBtn = container.querySelector<HTMLButtonElement>('[data-testid="bump"]')!
+    await act(async () => { bumpBtn.click() })
+
+    expect(calendarRenderCount).toBe(initialCount)
   })
 })

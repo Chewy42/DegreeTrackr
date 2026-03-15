@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { memo, useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { FiX, FiAlertTriangle } from 'react-icons/fi';
 import { ScheduledClass, DAY_NAMES, SHORT_DAY_NAMES, minutesToTime, hasMeetingTimes } from './types';
 import ClassDetailsModal from './ClassDetailsModal';
@@ -24,7 +24,7 @@ const DEFAULT_HOUR_HEIGHT = 120; // px per hour fallback
 
 const GRID_ROWS = END_HOUR - START_HOUR + 1; // number of hour slots to render
 
-export default function WeeklyCalendar({ classes, onRemoveClass, conflicts = {}, onSlotClick }: WeeklyCalendarProps) {
+function WeeklyCalendar({ classes, onRemoveClass, conflicts = {}, onSlotClick }: WeeklyCalendarProps) {
 	  const [selectedClass, setSelectedClass] = useState<ScheduledClass | null>(null);
 	  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 	  const [hourHeight, setHourHeight] = useState<number>(DEFAULT_HOUR_HEIGHT);
@@ -43,9 +43,9 @@ export default function WeeklyCalendar({ classes, onRemoveClass, conflicts = {},
     });
   }, [scheduledClasses]);
 
-	  const displayDays = hasWeekend 
+	  const displayDays = useMemo(() => hasWeekend
 	    ? ['M', 'Tu', 'W', 'Th', 'F', 'Sa', 'Su'] as const
-	    : ['M', 'Tu', 'W', 'Th', 'F'] as const;
+	    : ['M', 'Tu', 'W', 'Th', 'F'] as const, [hasWeekend]);
 
 	  // Generate time labels
 	  const timeLabels = useMemo(() => {
@@ -87,6 +87,9 @@ export default function WeeklyCalendar({ classes, onRemoveClass, conflicts = {},
 	  }, []);
 
 	  const pixelsPerMinute = hourHeight / 60;
+
+	  const handleSelectClass = useCallback((cls: ScheduledClass) => setSelectedClass(cls), []);
+	  const handleCloseModal = useCallback(() => setSelectedClass(null), []);
 
 		  return (
 		    <div className="flex flex-col h-full min-h-0 bg-surface overflow-hidden relative">
@@ -181,7 +184,7 @@ export default function WeeklyCalendar({ classes, onRemoveClass, conflicts = {},
                             <div
                             key={`${cls.id}-${day}-${idx}`}
                             tabIndex={0}
-                            onClick={() => setSelectedClass(cls)}
+                            onClick={() => handleSelectClass(cls)}
                             onKeyDown={(e) => {
                               if (e.key === 'Delete' || e.key === 'Backspace') {
                                 e.stopPropagation();
@@ -190,7 +193,7 @@ export default function WeeklyCalendar({ classes, onRemoveClass, conflicts = {},
                                 }
                               } else if (e.key === 'Enter' || e.key === ' ') {
                                 e.stopPropagation();
-                                setSelectedClass(cls);
+                                handleSelectClass(cls);
                               }
                             }}
                             className={`absolute inset-x-1 rounded-lg border shadow-sm p-2 overflow-hidden hover:z-10 hover:shadow-md transition-all group select-none cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500${conflictMsg ? ' ring-2 ring-red-500/60' : ''}`}
@@ -246,9 +249,13 @@ export default function WeeklyCalendar({ classes, onRemoveClass, conflicts = {},
       {/* Class Details Modal */}
       <ClassDetailsModal
         isOpen={selectedClass !== null}
-        onClose={() => setSelectedClass(null)}
+        onClose={handleCloseModal}
         classData={selectedClass}
       />
     </div>
   );
 }
+
+const MemoizedWeeklyCalendar = memo(WeeklyCalendar);
+export default MemoizedWeeklyCalendar;
+export { WeeklyCalendar as WeeklyCalendarUnmemoized };

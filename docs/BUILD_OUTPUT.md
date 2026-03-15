@@ -1,13 +1,13 @@
 # Build Output — DegreeTrackr Frontend
 
-## Latest verification — Wave 10
+## Latest verification — Wave 10 extended
 
 - **Build date:** 2026-03-14
-- **Wave:** 10 (final)
+- **Wave:** 10 extended (final)
 - **Result:** PASS
-- **Build time:** 1.45s
+- **Build time:** 1.43s
 - **TypeScript:** Clean (`tsc --noEmit` — 0 errors)
-- **Tests:** 717 passed, 2 skipped (73 test files)
+- **Tests:** 740 passed, 2 skipped (77 test files)
 - **Chunks > 500 kB:** None
 
 ### Top output files by size
@@ -17,6 +17,27 @@
 | `dist/assets/index-Bloqua3F.js` | 232.03 kB | 68.32 kB |
 | `dist/assets/index-BlRvhKWP.css` | 71.08 kB | 11.94 kB |
 | `dist/index.html` | 1.83 kB | 0.66 kB |
+
+### Wave 10 extended summary
+
+- DT104: Chat rate limit auth+limit+reset + profiles edge cases create/update/ownership/null
+- DT105: Axe regression on WeeklyCalendar, ExploreChat, OnboardingChat + Wave 10 extended final
+- DT106: Full onboarding E2E Playwright flow + ProgressPage snapshot regression
+- DT107: Schedule conflict add/detect/resolve regression + evaluation program → progress page flow
+- DT108: draftSchedule bulk add/clear/re-add/overlap tests
+- DT109: Wave 10 extended final build — all 740 tests green, production build clean
+
+---
+
+## Wave 10
+
+- **Build date:** 2026-03-14
+- **Wave:** 10 (final)
+- **Result:** PASS
+- **Build time:** 1.45s
+- **TypeScript:** Clean (`tsc --noEmit` — 0 errors)
+- **Tests:** 717 passed, 2 skipped (73 test files)
+- **Chunks > 500 kB:** None
 
 ### Wave 10 summary
 

@@ -397,14 +397,19 @@ export const hydrateCurrentChatSessionsFromLegacy = actionGeneric({
         continue
       }
 
-      const history = await readLegacyJson<{ messages?: LegacyChatMessage[] }>(`/chat/history/${session.id}`, args)
-      const syncedSession = await ctx.runMutation(syncCurrentChatSessionFromLegacyRef, {
-        scope: args.scope,
-        title: session.title,
-        legacySessionId: session.id,
-        messages: history?.messages ?? [],
-      })
-      hydratedSessions.push(syncedSession.session)
+      try {
+        const history = await readLegacyJson<{ messages?: LegacyChatMessage[] }>(`/chat/history/${session.id}`, args)
+        const syncedSession = await ctx.runMutation(syncCurrentChatSessionFromLegacyRef, {
+          scope: args.scope,
+          title: session.title,
+          legacySessionId: session.id,
+          messages: history?.messages ?? [],
+        })
+        hydratedSessions.push(syncedSession.session)
+      } catch (err) {
+        console.error(`[legacyHydration] Failed to hydrate chat session ${session.id}:`, err)
+        // Continue with remaining sessions — partial hydration is better than total failure
+      }
     }
 
     return hydratedSessions.sort((left, right) => (right.lastMessageAt ?? right.createdAt) - (left.lastMessageAt ?? left.createdAt))

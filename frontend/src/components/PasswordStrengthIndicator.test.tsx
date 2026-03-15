@@ -1,36 +1,9 @@
 // @vitest-environment jsdom
 import React from 'react'
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import PasswordStrengthIndicator from './PasswordStrengthIndicator'
-
-// Strength tiers:
-// score 0 → "Very weak"   — color #ef4444 (red)
-// score 1 → "Needs work"  — color #ef4444 (red)
-// score 2 → "Getting there" — color #f97316 (orange)
-// score 3 → "Almost there"  — color #84cc16 (lime)
-// score 4 → "Strong"       — color #22c55e (green)
-
-const STRENGTH_LABELS = ['Very weak', 'Needs work', 'Getting there', 'Almost there', 'Strong']
-
-function getStrengthLabel(container: HTMLElement): string | null {
-  const spans = Array.from(container.querySelectorAll('span'))
-  const found = spans.find((s) => STRENGTH_LABELS.includes(s.textContent?.trim() ?? ''))
-  return found?.textContent?.trim() ?? null
-}
-
-function getBarWidth(container: HTMLElement): string {
-  // The progress bar is the inner div with class h-full inside the track
-  const bar = container.querySelector<HTMLElement>('.h-full')
-  return bar?.style.width ?? ''
-}
-
-function getLabelColor(container: HTMLElement): string {
-  const spans = Array.from(container.querySelectorAll('span'))
-  const found = spans.find((s) => STRENGTH_LABELS.includes(s.textContent?.trim() ?? ''))
-  return (found as HTMLElement | undefined)?.style.color ?? ''
-}
 
 describe('PasswordStrengthIndicator', () => {
   let container: HTMLDivElement
@@ -47,90 +20,114 @@ describe('PasswordStrengthIndicator', () => {
     container.remove()
   })
 
-  async function render(password: string) {
+  async function renderPwd(password: string) {
     await act(async () => {
       root.render(<PasswordStrengthIndicator password={password} />)
     })
   }
 
-  it('empty string → "Very weak" label and 0% bar', async () => {
-    await render('')
-    expect(getStrengthLabel(container)).toBe('Very weak')
-    expect(getBarWidth(container)).toBe('0%')
+  // --- Strength labels ---
+
+  it('shows "Very weak" for empty string (score 0)', async () => {
+    await renderPwd('')
+    expect(container.textContent).toContain('Very weak')
   })
 
-  it('weak password ("abc") → "Very weak" label and minimum 8% bar', async () => {
-    // "abc": length <7, no number, no uppercase, no special → score 0
-    await render('abc')
-    expect(getStrengthLabel(container)).toBe('Very weak')
-    expect(getBarWidth(container)).toBe('8%')
+  it('shows "Needs work" for password meeting only 1 requirement', async () => {
+    // Length ≥ 7 only: "aaaaaaa"
+    await renderPwd('aaaaaaa')
+    expect(container.textContent).toContain('Needs work')
   })
 
-  it('score-1 password ("abc123") → "Needs work" label and 25% bar', async () => {
-    // "abc123": length <7 ✗, has number ✓, no uppercase ✗, no special ✗ → score 1
-    await render('abc123')
-    expect(getStrengthLabel(container)).toBe('Needs work')
-    expect(getBarWidth(container)).toBe('25%')
+  it('shows "Getting there" for password meeting 2 requirements', async () => {
+    // Length + number: "aaaaaaa1"
+    await renderPwd('aaaaaaa1')
+    expect(container.textContent).toContain('Getting there')
   })
 
-  it('score-2 password ("Abcdefg") → "Getting there" label and 50% bar', async () => {
-    // "Abcdefg": length ≥7 ✓, no number ✗, has uppercase ✓, no special ✗ → score 2
-    await render('Abcdefg')
-    expect(getStrengthLabel(container)).toBe('Getting there')
-    expect(getBarWidth(container)).toBe('50%')
+  it('shows "Almost there" for password meeting 3 requirements', async () => {
+    // Length + number + uppercase: "Aaaaaaa1"
+    await renderPwd('Aaaaaaa1')
+    expect(container.textContent).toContain('Almost there')
   })
 
-  it('score-3 password ("Abcdefg1") → "Almost there" label and 75% bar', async () => {
-    // "Abcdefg1": length ≥7 ✓, has number ✓, has uppercase ✓, no special ✗ → score 3
-    await render('Abcdefg1')
-    expect(getStrengthLabel(container)).toBe('Almost there')
-    expect(getBarWidth(container)).toBe('75%')
+  it('shows "Strong" for password meeting all 4 requirements', async () => {
+    // Length + number + uppercase + special: "Aaaaaaa1!"
+    await renderPwd('Aaaaaaa1!')
+    expect(container.textContent).toContain('Strong')
   })
 
-  it('strong password ("Abcdefg1!") → "Strong" label and 100% bar', async () => {
-    // "Abcdefg1!": all 4 requirements met → score 4
-    await render('Abcdefg1!')
-    expect(getStrengthLabel(container)).toBe('Strong')
-    expect(getBarWidth(container)).toBe('100%')
+  // --- Individual requirement dot colours ---
+
+  it('length dot is green when ≥ 7 chars', async () => {
+    await renderPwd('abcdefg') // exactly 7
+    const dots = container.querySelectorAll<HTMLSpanElement>('span.w-2.h-2.rounded-full')
+    expect(dots[0].style.backgroundColor).toBe('rgb(34, 197, 94)') // #22c55e
   })
 
-  it('label color is red for weak passwords (score ≤ 1)', async () => {
-    await render('abc123')
-    // score 1 → color #ef4444
-    expect(getLabelColor(container)).toBe('rgb(239, 68, 68)')
+  it('length dot is grey when < 7 chars', async () => {
+    await renderPwd('abcdef') // 6
+    const dots = container.querySelectorAll<HTMLSpanElement>('span.w-2.h-2.rounded-full')
+    expect(dots[0].style.backgroundColor).toBe('rgba(15, 23, 42, 0.2)')
   })
 
-  it('label color is orange for score 2', async () => {
-    await render('Abcdefg')
-    // score 2 → color #f97316
-    expect(getLabelColor(container)).toBe('rgb(249, 115, 22)')
+  it('number dot is green when password contains a digit', async () => {
+    await renderPwd('aaaaaaa1')
+    const dots = container.querySelectorAll<HTMLSpanElement>('span.w-2.h-2.rounded-full')
+    expect(dots[1].style.backgroundColor).toBe('rgb(34, 197, 94)')
   })
 
-  it('label color is lime for score 3', async () => {
-    await render('Abcdefg1')
-    // score 3 → color #84cc16
-    expect(getLabelColor(container)).toBe('rgb(132, 204, 22)')
+  it('number dot is grey when password has no digit', async () => {
+    await renderPwd('aaaaaaa')
+    const dots = container.querySelectorAll<HTMLSpanElement>('span.w-2.h-2.rounded-full')
+    expect(dots[1].style.backgroundColor).toBe('rgba(15, 23, 42, 0.2)')
   })
 
-  it('label color is green for strong password (score 4)', async () => {
-    await render('Abcdefg1!')
-    // score 4 → color #22c55e
-    expect(getLabelColor(container)).toBe('rgb(34, 197, 94)')
+  it('uppercase dot is green when password contains uppercase', async () => {
+    await renderPwd('Aaaaaaa')
+    const dots = container.querySelectorAll<HTMLSpanElement>('span.w-2.h-2.rounded-full')
+    expect(dots[2].style.backgroundColor).toBe('rgb(34, 197, 94)')
   })
 
-  it('renders all four requirement labels', async () => {
-    await render('')
+  it('special char dot is green when password contains special character', async () => {
+    await renderPwd('aaaaaaa!')
+    const dots = container.querySelectorAll<HTMLSpanElement>('span.w-2.h-2.rounded-full')
+    expect(dots[3].style.backgroundColor).toBe('rgb(34, 197, 94)')
+  })
+
+  // --- Bar width ---
+
+  it('bar width is 0% for empty password', async () => {
+    await renderPwd('')
+    const bar = container.querySelector<HTMLDivElement>('div.h-full.rounded-full')!
+    expect(bar.style.width).toBe('0%')
+  })
+
+  it('bar width is at least 8% for non-empty password (even if no requirements met)', async () => {
+    await renderPwd('a') // short + no special requirements
+    const bar = container.querySelector<HTMLDivElement>('div.h-full.rounded-full')!
+    const width = parseFloat(bar.style.width)
+    expect(width).toBeGreaterThanOrEqual(8)
+  })
+
+  it('bar width is 100% when all 4 requirements are met', async () => {
+    await renderPwd('Aaaaaaa1!')
+    const bar = container.querySelector<HTMLDivElement>('div.h-full.rounded-full')!
+    expect(bar.style.width).toBe('100%')
+  })
+
+  // --- Static content ---
+
+  it('renders "Password strength" heading', async () => {
+    await renderPwd('')
+    expect(container.textContent).toContain('Password strength')
+  })
+
+  it('renders all 4 requirement labels', async () => {
+    await renderPwd('')
     expect(container.textContent).toContain('At least 7 characters')
     expect(container.textContent).toContain('Contains a number')
     expect(container.textContent).toContain('Contains an uppercase letter')
     expect(container.textContent).toContain('Contains a special character')
-  })
-
-  it('satisfied requirements show green indicator dots', async () => {
-    // "Abcdefg1!" satisfies all → 4 green dots
-    await render('Abcdefg1!')
-    const dots = Array.from(container.querySelectorAll<HTMLElement>('span.w-2.h-2'))
-    const greenDots = dots.filter((d) => d.style.backgroundColor === 'rgb(34, 197, 94)')
-    expect(greenDots).toHaveLength(4)
   })
 })

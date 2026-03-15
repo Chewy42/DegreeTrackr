@@ -147,6 +147,35 @@ describe('ExploreChat', () => {
     await act(async () => { resolve(SEND_RESULT) })
   })
 
+  it('typing indicator disappears once the AI response arrives', async () => {
+    let resolve!: (v: typeof SEND_RESULT) => void
+    const deferred = new Promise<typeof SEND_RESULT>(res => { resolve = res })
+    mocks.sendMessage.mockReturnValueOnce(deferred)
+
+    await render()
+    const suggestionBtn = getBtn('What can I do with my major?')!
+
+    // Non-async act: synchronous state updates (loading=true) flush but the
+    // awaited sendMessage promise stays in flight
+    act(() => { suggestionBtn.click() })
+
+    const getSrOnly = () =>
+      Array.from(container.querySelectorAll<HTMLElement>('.sr-only'))
+
+    // Indicator must be visible while loading
+    expect(
+      getSrOnly().find(el => el.textContent?.includes('AI advisor is responding'))
+    ).not.toBeUndefined()
+
+    // Resolve the response
+    await act(async () => { resolve(SEND_RESULT) })
+
+    // Indicator must be gone after response arrives
+    expect(
+      getSrOnly().find(el => el.textContent?.includes('AI advisor is responding'))
+    ).toBeUndefined()
+  })
+
   it('clicking New Chat resets to the empty state', async () => {
     await render()
 

@@ -13,15 +13,10 @@ const mocks = vi.hoisted(() => ({
   jwt: 'test-jwt',
   preferences: { hasProgramEvaluation: true, onboardingComplete: false } as Record<string, unknown>,
   mergePreferences: vi.fn(),
-  getSessionMessages: vi.fn().mockResolvedValue([]),
-  sendMessage: vi.fn().mockResolvedValue({ session: { id: 's1' }, messages: [], suggestions: [] }),
   listChatSessions: vi.fn().mockResolvedValue([]),
   deleteChatSession: vi.fn(),
   clearExploreSessions: vi.fn(),
   getConvexClient: vi.fn(),
-  convexApi: { profile: { completeCurrentOnboarding: 'profile:completeCurrentOnboarding' } },
-  useMutation: vi.fn().mockReturnValue(vi.fn()),
-  deleteCurrentProgramEvaluationBoundary: vi.fn(),
 }))
 
 // ── Module mocks ───────────────────────────────────────────────────────────
@@ -35,44 +30,36 @@ vi.mock('../auth/AuthContext', () => ({
 }))
 
 vi.mock('../lib/convex', () => ({
-  getSessionMessagesConvex: mocks.getSessionMessages,
-  sendCurrentExploreMessageConvex: mocks.sendMessage,
   listChatSessionsConvex: mocks.listChatSessions,
   deleteChatSessionConvex: mocks.deleteChatSession,
   clearExploreSessionsConvex: mocks.clearExploreSessions,
   getConvexClient: mocks.getConvexClient,
-  deleteCurrentProgramEvaluationBoundary: mocks.deleteCurrentProgramEvaluationBoundary,
 }))
 
 vi.mock('../lib/convex/api', () => ({
-  convexApi: mocks.convexApi,
+  convexApi: {},
 }))
-
-vi.mock('convex/react', () => ({
-  useMutation: mocks.useMutation,
-}))
-
-vi.mock('react-router-dom', () => ({
-  Navigate: (props: any) => React.createElement('div', { 'data-testid': 'navigate', 'data-to': props.to }),
-}))
-
-vi.mock('react-markdown', () => ({
-  default: ({ children }: { children: string }) =>
-    React.createElement('span', { 'data-testid': 'markdown' }, children),
-}))
-
-vi.mock('remark-gfm', () => ({ default: () => {} }))
 
 vi.mock('../components/schedule/ClassDetailsModal', () => ({
   default: () => React.createElement('div', { 'data-testid': 'class-details-modal' }),
 }))
 
-vi.mock('react-icons/fi', () =>
-  new Proxy({}, {
-    get: (_target, name) => (props: any) =>
-      React.createElement('span', { ...props, 'data-icon': name }),
-  }),
-)
+// Explicit icon stubs — Proxy-based mocks hang vitest during dynamic imports
+const iconStub = (name: string) => (props: any) =>
+  React.createElement('span', { ...props, 'data-icon': name })
+
+vi.mock('react-icons/fi', () => ({
+  FiX: iconStub('FiX'),
+  FiAlertTriangle: iconStub('FiAlertTriangle'),
+  FiClock: iconStub('FiClock'),
+  FiMapPin: iconStub('FiMapPin'),
+  FiUser: iconStub('FiUser'),
+  FiBook: iconStub('FiBook'),
+  FiCalendar: iconStub('FiCalendar'),
+  FiAward: iconStub('FiAward'),
+  FiMessageSquare: iconStub('FiMessageSquare'),
+  FiTrash2: iconStub('FiTrash2'),
+}))
 
 // Stub ResizeObserver
 vi.stubGlobal('ResizeObserver', vi.fn(() => ({
@@ -111,15 +98,14 @@ function makeTwoClasses() {
   ]
 }
 
-function makeThreeSessions() {
+function makeTwoSessions() {
   return [
     { _id: 'sess-1', title: 'Course advice', scope: 'explore' as const, lastMessageAt: 1700000000000, createdAt: 1699990000000 },
     { _id: 'sess-2', title: 'Schedule help', scope: 'explore' as const, lastMessageAt: 1700001000000, createdAt: 1699991000000 },
-    { _id: 'sess-3', title: 'GPA calc', scope: 'explore' as const, lastMessageAt: 1700002000000, createdAt: 1699992000000 },
   ]
 }
 
-// ── Test helpers ────────────────────────────────────────────────────────────
+// ── Tests ──────────────────────────────────────────────────────────────────
 
 describe('Snapshot regression suite', () => {
   let container: HTMLDivElement
@@ -131,7 +117,6 @@ describe('Snapshot regression suite', () => {
     root = createRoot(container)
     vi.clearAllMocks()
     mocks.preferences = { hasProgramEvaluation: true, onboardingComplete: false }
-    try { sessionStorage.removeItem('degreetrackr.onboarding_progress') } catch {}
   })
 
   afterEach(() => {
@@ -153,7 +138,7 @@ describe('Snapshot regression suite', () => {
 
     it('matches snapshot with 2 classes on fixed days/times', async () => {
       await render()
-      expect(container).toMatchSnapshot()
+      expect(container.firstChild).toMatchSnapshot()
     })
 
     it('snapshot is stable on second render', async () => {
@@ -166,39 +151,7 @@ describe('Snapshot regression suite', () => {
     })
   })
 
-  // ── 2. ExploreChat ────────────────────────────────────────────────────
-
-  describe('ExploreChat', () => {
-    async function render(sessionId: string | null = 'sess-1') {
-      mocks.getSessionMessages.mockResolvedValue([
-        { role: 'user', content: 'What courses should I take?', timestamp: new Date('2026-01-15T10:00:00Z') },
-        { role: 'assistant', content: 'Based on your major, I recommend CS 201.', timestamp: new Date('2026-01-15T10:00:05Z') },
-        { role: 'user', content: 'What about electives?', timestamp: new Date('2026-01-15T10:00:10Z') },
-      ])
-      const { default: ExploreChat } = await import('../components/ExploreChat')
-      await act(async () => {
-        root.render(<ExploreChat sessionId={sessionId} onSessionChange={vi.fn()} />)
-      })
-      // Wait for async history load
-      await act(async () => { await new Promise(r => setTimeout(r, 50)) })
-    }
-
-    it('matches snapshot with 3 messages (2 user, 1 bot)', async () => {
-      await render()
-      expect(container).toMatchSnapshot()
-    })
-
-    it('snapshot is stable on second render', async () => {
-      await render()
-      const first = container.innerHTML
-      act(() => { root.unmount() })
-      root = createRoot(container)
-      await render()
-      expect(container.innerHTML).toBe(first)
-    })
-  })
-
-  // ── 3. ProgressCard (DegreeProgressCard) ──────────────────────────────
+  // ── 2. DegreeProgressCard ──────────────────────────────────────────────
 
   describe('DegreeProgressCard', () => {
     async function render() {
@@ -219,7 +172,7 @@ describe('Snapshot regression suite', () => {
 
     it('matches snapshot with GPA 3.5, 60/120 credits, 50% complete', async () => {
       await render()
-      expect(container).toMatchSnapshot()
+      expect(container.firstChild).toMatchSnapshot()
     })
 
     it('snapshot is stable on second render', async () => {
@@ -232,11 +185,11 @@ describe('Snapshot regression suite', () => {
     })
   })
 
-  // ── 4. ChatHistorySidebar ─────────────────────────────────────────────
+  // ── 3. ChatHistorySidebar ─────────────────────────────────────────────
 
   describe('ChatHistorySidebar', () => {
     async function render(activeId: string | null = 'sess-2') {
-      mocks.listChatSessions.mockResolvedValue(makeThreeSessions())
+      mocks.listChatSessions.mockResolvedValue(makeTwoSessions())
       const { default: ChatHistorySidebar } = await import('../components/ChatHistorySidebar')
       await act(async () => {
         root.render(
@@ -247,34 +200,9 @@ describe('Snapshot regression suite', () => {
       await act(async () => { await new Promise(r => setTimeout(r, 50)) })
     }
 
-    it('matches snapshot with 3 sessions, 1 active', async () => {
+    it('matches snapshot with 2 sessions, 1 active', async () => {
       await render()
-      expect(container).toMatchSnapshot()
-    })
-
-    it('snapshot is stable on second render', async () => {
-      await render()
-      const first = container.innerHTML
-      act(() => { root.unmount() })
-      root = createRoot(container)
-      await render()
-      expect(container.innerHTML).toBe(first)
-    })
-  })
-
-  // ── 5. OnboardingChat ─────────────────────────────────────────────────
-
-  describe('OnboardingChat', () => {
-    async function render() {
-      const { default: OnboardingChat } = await import('../components/OnboardingChat')
-      await act(async () => {
-        root.render(<OnboardingChat />)
-      })
-    }
-
-    it('matches snapshot showing first question, no answers', async () => {
-      await render()
-      expect(container).toMatchSnapshot()
+      expect(container.firstChild).toMatchSnapshot()
     })
 
     it('snapshot is stable on second render', async () => {

@@ -234,6 +234,102 @@ describe('convex/profile edge cases', () => {
     })
   })
 
+  describe('ownership isolation', () => {
+    it('user A cannot see user B profile via getCurrentUserProfile', async () => {
+      const { getCurrentUserProfile } = await getHandlers()
+      const db = buildMockDb()
+      // Seed user B's profile
+      await db.insert('userProfiles', {
+        clerkUserId: 'clerk|user-B',
+        primaryEmail: 'b@example.com',
+        firstName: 'UserB',
+      })
+      // Authenticate as user A (no profile of their own)
+      const ctx = buildMockCtx({ identity: { subject: CLERK_SUBJECT }, db })
+
+      const result = await getCurrentUserProfile(ctx, {})
+      // User A has no profile — should get null, not user B's data
+      expect(result).toBeNull()
+    })
+
+    it('user A update does not touch user B profile', async () => {
+      const { updateCurrentUserProfile } = await getHandlers()
+      const db = buildMockDb()
+      await db.insert('userProfiles', {
+        clerkUserId: 'clerk|user-B',
+        firstName: 'OriginalB',
+      })
+      // User A authenticates — ensureCurrentUserRecord auto-creates their profile
+      const ctx = buildMockCtx({
+        identity: { subject: CLERK_SUBJECT, email: 'a@example.com', givenName: 'UserA' },
+        db,
+      })
+
+      await updateCurrentUserProfile(ctx, { patch: { firstName: 'UpdatedA' } })
+
+      // Verify user B's name is untouched
+      const bRecords = [...db._records.values()].filter(
+        (r) => r._table === 'userProfiles' && r.clerkUserId === 'clerk|user-B',
+      )
+      expect(bRecords).toHaveLength(1)
+      expect(bRecords[0].firstName).toBe('OriginalB')
+    })
+  })
+
+  describe('auto-provisioning via ensureCurrentUserRecord', () => {
+    it('creates a new profile on first mutation for unknown user', async () => {
+      const { updateCurrentUserProfile } = await getHandlers()
+      const db = buildMockDb()
+      const ctx = buildMockCtx({
+        identity: { subject: CLERK_SUBJECT, email: 'new@example.com', givenName: 'New', familyName: 'User', name: 'New User' },
+        db,
+      })
+
+      const result = await updateCurrentUserProfile(ctx, { patch: { displayName: 'Newbie' } })
+      expect(result.displayName).toBe('Newbie')
+      expect(result.clerkUserId).toBe(CLERK_SUBJECT)
+
+      // Verify exactly one profile record was created
+      const profiles = [...db._records.values()].filter(
+        (r) => r._table === 'userProfiles' && r.clerkUserId === CLERK_SUBJECT,
+      )
+      expect(profiles).toHaveLength(1)
+    })
+  })
+
+  describe('null field handling', () => {
+    it('returns null for missing optional profile fields', async () => {
+      const { getCurrentUserProfile } = await getHandlers()
+      const db = buildMockDb()
+      // Profile with only clerkUserId — no names, no email
+      await db.insert('userProfiles', { clerkUserId: CLERK_SUBJECT })
+      const ctx = buildMockCtx({ identity: { subject: CLERK_SUBJECT }, db })
+
+      const result = await getCurrentUserProfile(ctx, {})
+      expect(result).not.toBeNull()
+      expect(result.primaryEmail).toBeNull()
+      expect(result.firstName).toBeNull()
+      expect(result.lastName).toBeNull()
+      expect(result.displayName).toBeNull()
+    })
+
+    it('update preserves unpatched fields as-is', async () => {
+      const { updateCurrentUserProfile } = await getHandlers()
+      const db = buildMockDb()
+      await db.insert('userProfiles', {
+        clerkUserId: CLERK_SUBJECT,
+        firstName: 'Keep',
+        lastName: 'This',
+      })
+      const ctx = buildMockCtx({ identity: { subject: CLERK_SUBJECT }, db })
+
+      const result = await updateCurrentUserProfile(ctx, { patch: { displayName: 'NewDisplay' } })
+      expect(result.displayName).toBe('NewDisplay')
+      expect(result.firstName).toBe('Keep')
+      expect(result.lastName).toBe('This')
+    })
+  })
+
   describe('updateCurrentUserPreferences', () => {
     it('creates preferences with defaults when none exist', async () => {
       const { updateCurrentUserPreferences } = await getHandlers()

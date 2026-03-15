@@ -124,4 +124,12 @@ describe('ExploreChat message persistence — DT144', () => {
     expect(container.textContent).not.toContain('You have several paths.')
     expect(onSessionChange).toHaveBeenCalledWith(null)
   })
+
+  it('shows empty state when no session is loaded', async () => {
+    mocks.getSessionMessages.mockResolvedValue([])
+    await render(null)
+
+    expect(container.textContent).toContain('Start a new exploration')
+    expect(mocks.getSessionMessages).not.toHaveBeenCalled()
+  })
 })

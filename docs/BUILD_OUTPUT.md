@@ -199,3 +199,11 @@
 - **Build**: PASS (1.36s, CI=true, 0 TS errors)
 - **Test files**: 167 (unchanged — wave was product/UX focused)
 - **Wave 29 changes**: ScheduleBuilder useMemo perf fix. All UX/code audits passed with no additional changes needed.
+
+## Wave 29 Complete (2026-03-15 08:28 AM) — Product/UX/Performance
+- **Build**: PASS (1.32s, CI=true, 0 TS errors)
+- **Test files**: 167 (unchanged — Wave 29 was code quality)
+- **Wave 29 fixes**:
+  - perf: ScheduleBuilder addedClassIds + conflictMap wrapped in useMemo
+  - No Convex strict-eq bugs found in DT
+  - No-ops: GPA edge case, ExploreChat double-send guard, ChatHistorySidebar reactivity, rate limit consistency, OnboardingChat required fields, WeeklyCalendar conflict highlighting, ScheduleConflictBanner stale state

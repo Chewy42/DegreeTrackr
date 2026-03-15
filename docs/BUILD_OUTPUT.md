@@ -114,3 +114,7 @@
 - `dist/assets/index-BKNWlugA.js` — 232.03 kB (gzip: 68.32 kB)
 
 **Tasks completed:** DT140 (userState coverage), DT141 (schedule undo/redo), DT142 (degree audit report), DT143 (build gate)
+
+## Wave 15 Summary (2026-03-15)
+- **Build**: PASS (1.36s, CI=true, 0 TS errors)
+- **Wave 15 additions**: DT148 schedule capacity, DT149 profile completion %, DT150 chat rate limit, DT151 eval re-upload, DT152 this final

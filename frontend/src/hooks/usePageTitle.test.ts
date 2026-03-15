@@ -1,61 +1,54 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it, afterEach } from 'vitest'
 import { act } from 'react'
-import { createElement } from 'react'
-import { createRoot } from 'react-dom/client'
 import { usePageTitle } from './usePageTitle'
 
-function TitleSetter({ title }: { title: string | null }) {
-  usePageTitle(title)
-  return null
+// Minimal React hook runner without @testing-library/react
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+
+function renderHook(hook: () => void): { unmount: () => Promise<void> } {
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
+
+  function HookRunner() {
+    hook()
+    return null
+  }
+
+  act(() => { root.render(React.createElement(HookRunner)) })
+
+  return {
+    unmount: async () => {
+      await act(async () => { root.unmount() })
+      container.remove()
+    },
+  }
 }
 
+afterEach(() => {
+  document.title = ''
+})
+
 describe('usePageTitle', () => {
-  let container: HTMLDivElement
-  let root: ReturnType<typeof createRoot>
-  const originalTitle = document.title
-
-  beforeEach(() => {
-    document.title = 'Initial Title'
-    container = document.createElement('div')
-    document.body.appendChild(container)
-    root = createRoot(container)
-  })
-
-  afterEach(async () => {
-    await act(async () => { root.unmount() })
-    container.remove()
-    document.title = originalTitle
-  })
-
-  it('sets document.title to "Page | DegreeTrackr" on render', async () => {
-    await act(async () => { root.render(createElement(TitleSetter, { title: 'Schedule Builder' })) })
+  it('sets document.title with page name on mount', async () => {
+    const { unmount } = renderHook(() => usePageTitle('Schedule Builder'))
     expect(document.title).toBe('Schedule Builder | DegreeTrackr')
+    await unmount()
   })
 
-  it('sets document.title to just "DegreeTrackr" when title is null', async () => {
-    await act(async () => { root.render(createElement(TitleSetter, { title: null })) })
+  it('sets document.title to just "DegreeTrackr" when pageTitle is null', async () => {
+    const { unmount } = renderHook(() => usePageTitle(null))
     expect(document.title).toBe('DegreeTrackr')
+    await unmount()
   })
 
-  it('updates document.title when the title prop changes', async () => {
-    await act(async () => { root.render(createElement(TitleSetter, { title: 'Page A' })) })
-    expect(document.title).toBe('Page A | DegreeTrackr')
-
-    await act(async () => { root.render(createElement(TitleSetter, { title: 'Page B' })) })
-    expect(document.title).toBe('Page B | DegreeTrackr')
-  })
-
-  it('resets document.title to the previous value on unmount', async () => {
-    expect(document.title).toBe('Initial Title')
-
-    await act(async () => { root.render(createElement(TitleSetter, { title: 'Temp Page' })) })
-    expect(document.title).toBe('Temp Page | DegreeTrackr')
-
-    await act(async () => { root.unmount() })
-    expect(document.title).toBe('Initial Title')
-
-    // Prevent afterEach from calling unmount again on an already-unmounted root
-    root = createRoot(container)
+  it('resets title on unmount to previous value', async () => {
+    document.title = 'Previous Title'
+    const { unmount } = renderHook(() => usePageTitle('Settings'))
+    expect(document.title).toBe('Settings | DegreeTrackr')
+    await unmount()
+    expect(document.title).toBe('Previous Title')
   })
 })

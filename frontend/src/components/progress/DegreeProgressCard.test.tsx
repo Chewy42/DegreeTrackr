@@ -50,6 +50,68 @@ describe('DegreeProgressCard', () => {
     expect(markup).not.toContain('NaN')
   })
 
+  // ── Edge cases: credit boundary conditions ─────────────────────────────────
+
+  it('shows 0% and zero earned credits when no credits have been earned', () => {
+    const markup = renderToStaticMarkup(
+      <DegreeProgressCard progress={0} totalCredits={120} earnedCredits={0} inProgressCredits={0} />,
+    )
+
+    expect(markup).toContain('0%')
+    // Progress bar is at 0 (aria-valuenow="0")
+    expect(markup).toContain('aria-valuenow="0"')
+    // Earned credit counter shows 0.0
+    expect(markup).toContain('0.0 cr')
+  })
+
+  it('shows exactly 100% when earned credits exactly equal total required (no floating-point drift)', () => {
+    // progress prop is already calculated by the caller; we verify the component
+    // renders it faithfully without rounding artifacts.
+    const markup = renderToStaticMarkup(
+      <DegreeProgressCard progress={100} totalCredits={120} earnedCredits={120} inProgressCredits={0} />,
+    )
+
+    expect(markup).toContain('100%')
+    expect(markup).not.toContain('99%')
+    expect(markup).not.toContain('101%')
+    expect(markup).toContain('aria-valuenow="100"')
+  })
+
+  it('caps the progress bar at 100% when in-progress credits would overflow past 100', () => {
+    // earnedCredits=120 fills 100% already; inProgressCredits=15 would push
+    // totalProgressPercent above 100 without Math.min capping.
+    const markup = renderToStaticMarkup(
+      <DegreeProgressCard progress={100} totalCredits={120} earnedCredits={120} inProgressCredits={15} />,
+    )
+
+    expect(markup).toContain('100%')
+    expect(markup).toContain('aria-valuenow="100"')
+    expect(markup).not.toContain('aria-valuenow="101"')
+    expect(markup).not.toContain('aria-valuenow="108"')
+  })
+
+  it('renders correct credit breakdown for partial completion', () => {
+    // 50% earned (60 of 120), 12 in progress
+    const markup = renderToStaticMarkup(
+      <DegreeProgressCard progress={50} totalCredits={120} earnedCredits={60} inProgressCredits={12} />,
+    )
+
+    expect(markup).toContain('50%')
+    expect(markup).toContain('60.0 cr')   // earned
+    expect(markup).toContain('12.0 cr')   // in progress
+    expect(markup).toContain('120.0 cr')  // total required
+    expect(markup).not.toContain('NaN')
+  })
+
+  it('shows 100% and the "Complete" label when all degree credits are fulfilled', () => {
+    const markup = renderToStaticMarkup(
+      <DegreeProgressCard progress={100} totalCredits={120} earnedCredits={120} inProgressCredits={0} />,
+    )
+
+    expect(markup).toContain('100%')
+    expect(markup).toContain('Complete')
+  })
+
   describe('action buttons', () => {
     let container: HTMLDivElement
     let root: Root

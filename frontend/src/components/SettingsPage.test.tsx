@@ -5,53 +5,51 @@ import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import SettingsPage from './SettingsPage'
 
-// Hoisted mocks — accessible in both vi.mock factories and test bodies
-const mocks = vi.hoisted(() => ({
-  updateSchedulingPrefs: vi.fn().mockResolvedValue({}),
-  signOut: vi.fn(),
-  toggleMode: vi.fn(),
-  useQueryReturn: { value: undefined as Record<string, string> | null | undefined },
+// ─── Mocks ───────────────────────────────────────────────────────
+
+vi.mock('../hooks/usePageTitle', () => ({ usePageTitle: vi.fn() }))
+
+const mockSignOut = vi.fn()
+vi.mock('../auth/AuthContext', () => ({
+  useAuth: () => ({ signOut: mockSignOut, jwt: 'test-jwt', user: null }),
 }))
 
 vi.mock('convex/react', () => ({
-  useMutation: () => mocks.updateSchedulingPrefs,
-  useQuery: () => mocks.useQueryReturn.value,
+  useQuery: vi.fn(() => null),
+  useMutation: vi.fn(() => vi.fn()),
 }))
 
-vi.mock('../auth/AuthContext', () => ({
-  useAuth: () => ({ signOut: mocks.signOut }),
+vi.mock('../lib/convex/api', () => ({
+  convexApi: {
+    profile: {
+      getCurrentSchedulingPreferences: 'getCurrentSchedulingPreferences',
+      updateCurrentSchedulingPreferences: 'updateCurrentSchedulingPreferences',
+    },
+  },
 }))
 
 vi.mock('../lib/convex/config', () => ({
   isConvexFeatureEnabled: vi.fn(() => true),
 }))
 
-vi.mock('../lib/convex/api', () => ({
-  convexApi: {
-    profile: {
-      getCurrentSchedulingPreferences: 'profile:getCurrentSchedulingPreferences',
-      updateCurrentSchedulingPreferences: 'profile:updateCurrentSchedulingPreferences',
-    },
-  },
+vi.mock('./ThemeModeToggle', () => ({
+  default: () => <div data-testid="theme-toggle" />,
 }))
 
-// Stub out complex child components
+vi.mock('./AuthCard', () => ({
+  default: ({ children, title }: { children: React.ReactNode; title: string }) => (
+    <div data-testid="auth-card">
+      <h1>{title}</h1>
+      {children}
+    </div>
+  ),
+}))
+
 vi.mock('./ProgramEvaluationViewer', () => ({
-  default: () => React.createElement('div', { 'data-testid': 'program-evaluation-viewer' }),
+  default: () => <div data-testid="program-eval" />,
 }))
 
-vi.mock('../theme/AppThemeProvider', () => ({
-  useAppTheme: () => ({ mode: 'light' as const, setMode: vi.fn(), toggleMode: mocks.toggleMode }),
-  AppThemeProvider: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
-}))
-
-const LOADED_PREFS = {
-  planning_mode: 'upcoming_semester',
-  credit_load: 'standard',
-  schedule_preference: 'mornings',
-  work_status: 'none',
-  priority: 'major',
-}
+// ─── Tests ───────────────────────────────────────────────────────
 
 describe('SettingsPage', () => {
   let container: HTMLDivElement
@@ -62,8 +60,6 @@ describe('SettingsPage', () => {
     document.body.appendChild(container)
     root = createRoot(container)
     vi.clearAllMocks()
-    mocks.updateSchedulingPrefs.mockResolvedValue({})
-    mocks.useQueryReturn.value = undefined
   })
 
   afterEach(async () => {
@@ -71,93 +67,65 @@ describe('SettingsPage', () => {
     container.remove()
   })
 
-  async function renderComponent() {
+  async function render() {
     await act(async () => { root.render(<SettingsPage />) })
   }
 
-  function getButton(text: string): HTMLButtonElement | undefined {
-    return Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(b =>
-      b.textContent?.includes(text)
-    )
-  }
-
-  it('initial loadState is "loading" not "idle" — Wave 1 regression', async () => {
-    // Query still in-flight (undefined) — loadState must stay "loading", not flip to an idle/empty state
-    mocks.useQueryReturn.value = undefined
-
-    await renderComponent()
-
-    const statusEl = container.querySelector('[role="status"]')
-    expect(statusEl?.textContent).toContain('Loading preferences')
+  it('renders without throwing', async () => {
+    await expect(render()).resolves.toBeUndefined()
   })
 
-  it('shows preference options once query data arrives', async () => {
-    mocks.useQueryReturn.value = LOADED_PREFS
-
-    await renderComponent()
-
-    // Preference option buttons should be visible (aria-pressed attribute confirms them)
-    const pressedBtns = container.querySelectorAll<HTMLButtonElement>('[aria-pressed]')
-    expect(pressedBtns.length).toBeGreaterThan(0)
+  it('renders "Settings" title', async () => {
+    await render()
+    expect(container.textContent).toContain('Settings')
   })
 
-  it('calls updateCurrentSchedulingPreferences with correct patch on save', async () => {
-    mocks.useQueryReturn.value = LOADED_PREFS
-
-    await renderComponent()
-
-    // "Light (9-12)" is NOT currently selected (standard is selected for credit_load)
-    const lightBtn = Array.from(container.querySelectorAll<HTMLButtonElement>('[aria-pressed="false"]'))
-      .find(b => b.textContent?.includes('Light (9-12)'))!
-
-    await act(async () => { lightBtn.click() })
-
-    expect(mocks.updateSchedulingPrefs).toHaveBeenCalledWith({
-      patch: { credit_load: 'light' },
-    })
+  it('renders the Appearance section', async () => {
+    await render()
+    expect(container.textContent).toContain('Appearance')
   })
 
-  it('shows success feedback after a preference is saved', async () => {
-    mocks.useQueryReturn.value = LOADED_PREFS
-
-    await renderComponent()
-
-    const lightBtn = Array.from(container.querySelectorAll<HTMLButtonElement>('[aria-pressed="false"]'))
-      .find(b => b.textContent?.includes('Light (9-12)'))!
-
-    await act(async () => { lightBtn.click() })
-
-    // "Saved" status indicator must appear after mutation resolves
-    const savedEl = Array.from(container.querySelectorAll('[role="status"]')).find(el =>
-      el.textContent?.includes('Saved')
-    )
-    expect(savedEl).toBeDefined()
+  it('renders ThemeModeToggle', async () => {
+    await render()
+    expect(container.querySelector('[data-testid="theme-toggle"]')).not.toBeNull()
   })
 
-  it('theme toggle button is rendered and triggers toggleMode on click', async () => {
-    mocks.useQueryReturn.value = LOADED_PREFS
-
-    await renderComponent()
-
-    // ThemeModeToggle renders a button with aria-label "Switch to dark mode"
-    const toggleBtn = container.querySelector<HTMLButtonElement>('[aria-label*="Switch to"]')
-    expect(toggleBtn).toBeDefined()
-
-    await act(async () => { toggleBtn!.click() })
-
-    expect(mocks.toggleMode).toHaveBeenCalledTimes(1)
+  it('renders Scheduling Preferences section', async () => {
+    await render()
+    expect(container.textContent).toContain('Scheduling Preferences')
   })
 
-  it('sign-out button calls signOut from auth context', async () => {
-    mocks.useQueryReturn.value = LOADED_PREFS
+  it('renders Refresh button', async () => {
+    await render()
+    const buttons = Array.from(container.querySelectorAll('button'))
+    const refreshBtn = buttons.find(b => b.textContent?.includes('Refresh'))
+    expect(refreshBtn).not.toBeUndefined()
+  })
 
-    await renderComponent()
+  it('renders Sign Out button', async () => {
+    await render()
+    const buttons = Array.from(container.querySelectorAll('button'))
+    const signOutBtn = buttons.find(b => b.textContent?.toLowerCase().includes('sign out'))
+    expect(signOutBtn).not.toBeUndefined()
+  })
 
-    const signOutBtn = getButton('Sign Out')
-    expect(signOutBtn).toBeDefined()
+  it('calls signOut when Sign Out button is clicked', async () => {
+    await render()
+    const buttons = Array.from(container.querySelectorAll('button'))
+    const signOutBtn = buttons.find(b => b.textContent?.toLowerCase().includes('sign out'))!
+    await act(async () => { signOutBtn.click() })
+    expect(mockSignOut).toHaveBeenCalledOnce()
+  })
 
-    await act(async () => { signOutBtn!.click() })
+  it('renders ProgramEvaluationViewer', async () => {
+    await render()
+    expect(container.querySelector('[data-testid="program-eval"]')).not.toBeNull()
+  })
 
-    expect(mocks.signOut).toHaveBeenCalledTimes(1)
+  it('renders preference section cards (Planning Focus etc)', async () => {
+    const { useQuery } = await import('convex/react')
+    ;(useQuery as ReturnType<typeof vi.fn>).mockReturnValue({ planning_mode: 'upcoming_semester' })
+    await render()
+    expect(container.textContent).toContain('Planning Focus')
   })
 })

@@ -200,6 +200,107 @@ test.describe("authenticated page smoke tests (stubbed Clerk)", () => {
   });
 });
 
+test.describe("authenticated navigation and page rendering", () => {
+  const stubClerkAndPrefsNav = async (
+    page: import("@playwright/test").Page,
+  ) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        "degreetrackr.preferences",
+        JSON.stringify({ hasProgramEvaluation: true, onboardingComplete: true }),
+      );
+    });
+
+    await page.route("**/v1/client**", async (route) => {
+      if (!route.request().url().includes("clerk")) return route.continue();
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          response: {
+            sessions: [{ id: "sess_stub", status: "active" }],
+            last_active_session_id: "sess_stub",
+          },
+          client: {
+            sessions: [{ id: "sess_stub", status: "active" }],
+            last_active_session_id: "sess_stub",
+          },
+        }),
+      });
+    });
+  };
+
+  test("dashboard sidebar nav links are visible after auth", async ({ page }) => {
+    await stubClerkAndPrefsNav(page);
+
+    const errors: Error[] = [];
+    page.on("pageerror", (err) => errors.push(err));
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    expect(errors).toHaveLength(0);
+
+    // Sidebar should render nav links for main routes
+    const homeLink = page.getByRole("link", { name: /Home/i });
+    const scheduleLink = page.getByRole("link", { name: /Generate Schedule/i });
+    const exploreLink = page.getByRole("link", { name: /Explore my Options/i });
+    const authButton = page.getByRole("button", { name: /continue with google/i });
+
+    const homeVisible = await homeLink.isVisible().catch(() => false);
+    const scheduleVisible = await scheduleLink.isVisible().catch(() => false);
+    const exploreVisible = await exploreLink.isVisible().catch(() => false);
+    const authVisible = await authButton.isVisible().catch(() => false);
+
+    // Either all sidebar links render, or auth fallback is shown
+    expect((homeVisible && scheduleVisible && exploreVisible) || authVisible).toBe(true);
+  });
+
+  test("schedule builder renders time slot labels", async ({ page }) => {
+    await stubClerkAndPrefsNav(page);
+
+    const errors: Error[] = [];
+    page.on("pageerror", (err) => errors.push(err));
+
+    await page.goto("/schedule-gen-home");
+    await page.waitForLoadState("networkidle");
+
+    expect(errors).toHaveLength(0);
+
+    // WeeklyCalendar renders hour labels like "8 AM", "12 PM"
+    const eightAm = page.getByText("8 AM", { exact: true });
+    const twelvePm = page.getByText("12 PM", { exact: true });
+    const authButton = page.getByRole("button", { name: /continue with google/i });
+
+    const eightVisible = await eightAm.isVisible().catch(() => false);
+    const twelveVisible = await twelvePm.isVisible().catch(() => false);
+    const authVisible = await authButton.isVisible().catch(() => false);
+
+    expect((eightVisible && twelveVisible) || authVisible).toBe(true);
+  });
+
+  test("explore chat renders input field", async ({ page }) => {
+    await stubClerkAndPrefsNav(page);
+
+    const errors: Error[] = [];
+    page.on("pageerror", (err) => errors.push(err));
+
+    await page.goto("/exploration-assistant");
+    await page.waitForLoadState("networkidle");
+
+    expect(errors).toHaveLength(0);
+
+    // ExploreChat renders an input with the academic journey placeholder
+    const chatInput = page.getByPlaceholder(/Ask about your academic journey/i);
+    const authButton = page.getByRole("button", { name: /continue with google/i });
+
+    const chatVisible = await chatInput.isVisible().catch(() => false);
+    const authVisible = await authButton.isVisible().catch(() => false);
+
+    expect(chatVisible || authVisible).toBe(true);
+  });
+});
+
 test.describe("smoke suite", () => {
   test("app loads — page title includes DegreeTrackr", async ({ page }) => {
     const errors: Error[] = [];

@@ -118,3 +118,7 @@
 ## Wave 15 Summary (2026-03-15)
 - **Build**: PASS (1.36s, CI=true, 0 TS errors)
 - **Wave 15 additions**: DT148 schedule capacity, DT149 profile completion %, DT150 chat rate limit, DT151 eval re-upload, DT152 this final
+
+## Wave 15+16 Combined Summary (2026-03-15)
+- **Build**: PASS (1.37s, CI=true, 0 TS errors)
+- **Wave 15+16 additions**: DT148 capacity, DT149 profile %, DT150 chat rate limit, DT151 eval re-upload, DT152 W15 final, DT153 journey E2E, DT154 snapshot pagination, DT155 multi-semester, DT156 academic calendar, DT157 this final

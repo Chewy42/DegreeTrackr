@@ -8,6 +8,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import { getConvexClient } from './lib/convex/client'
 import { getConvexProviderState } from './lib/convex/config'
 import { ConvexClerkProviderBoundary } from './lib/convex/provider'
+import ConvexErrorBoundary from './components/ConvexErrorBoundary'
 import { AppThemeProvider } from './theme/AppThemeProvider'
 import './index.css'
 
@@ -35,9 +36,11 @@ createRoot(document.getElementById('root')!).render(
     <ErrorBoundary resetOnNavigate>
       <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} afterSignOutUrl="/">
         {convexState === 'ready' && convexClient ? (
-          <ConvexClerkProviderBoundary client={convexClient} useAuth={useClerkAuth}>
-            {appInner}
-          </ConvexClerkProviderBoundary>
+          <ConvexErrorBoundary>
+            <ConvexClerkProviderBoundary client={convexClient} useAuth={useClerkAuth}>
+              {appInner}
+            </ConvexClerkProviderBoundary>
+          </ConvexErrorBoundary>
         ) : (
           appInner
         )}

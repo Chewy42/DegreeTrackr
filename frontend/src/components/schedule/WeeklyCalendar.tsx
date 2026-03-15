@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { FiX, FiAlertTriangle } from 'react-icons/fi';
-import { ScheduledClass, SHORT_DAY_NAMES, minutesToTime, hasMeetingTimes } from './types';
+import { ScheduledClass, DAY_NAMES, SHORT_DAY_NAMES, minutesToTime, hasMeetingTimes } from './types';
 import ClassDetailsModal from './ClassDetailsModal';
 
 interface WeeklyCalendarProps {
@@ -8,6 +8,14 @@ interface WeeklyCalendarProps {
   onRemoveClass: (classId: string) => void;
   /** classId → conflict message; blocks with a conflict get a red highlight */
   conflicts?: Record<string, string>;
+  /** Called when the user activates a time slot (click or Enter/Space) */
+  onSlotClick?: (day: string, hour: number) => void;
+}
+
+function formatHour(hour: number): string {
+  if (hour === 0) return '12 AM';
+  if (hour === 12) return '12 PM';
+  return hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
 }
 
 const START_HOUR = 7; // 7 AM
@@ -16,7 +24,7 @@ const DEFAULT_HOUR_HEIGHT = 120; // px per hour fallback
 
 const GRID_ROWS = END_HOUR - START_HOUR + 1; // number of hour slots to render
 
-export default function WeeklyCalendar({ classes, onRemoveClass, conflicts = {} }: WeeklyCalendarProps) {
+export default function WeeklyCalendar({ classes, onRemoveClass, conflicts = {}, onSlotClick }: WeeklyCalendarProps) {
 	  const [selectedClass, setSelectedClass] = useState<ScheduledClass | null>(null);
 	  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 	  const [hourHeight, setHourHeight] = useState<number>(DEFAULT_HOUR_HEIGHT);
@@ -123,12 +131,36 @@ export default function WeeklyCalendar({ classes, onRemoveClass, conflicts = {} 
 	                {/* Days Columns */}
 	                {displayDays.map(day => (
                     <div key={day} className="flex-1 relative border-r border-slate-200 last:border-r-0 min-w-[100px]">
-	                    {/* Grid Lines */}
+	                    {/* Grid Lines / Time Slots */}
 	                    {timeLabels.map(hour => (
-	                        <div 
-	                        key={hour} 
-	                        className="border-b border-slate-100"
+	                        <div
+	                        key={hour}
+	                        role="button"
+	                        tabIndex={0}
+	                        aria-label={`Add class at ${DAY_NAMES[day]} ${formatHour(hour)}`}
+	                        data-slot-day={day}
+	                        data-slot-hour={hour}
+	                        className="border-b border-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400"
 	                        style={{ height: hourHeight }}
+	                        onClick={() => onSlotClick?.(day, hour)}
+	                        onKeyDown={(e) => {
+	                          if (e.key === 'Enter' || e.key === ' ') {
+	                            e.preventDefault();
+	                            onSlotClick?.(day, hour);
+	                            return;
+	                          }
+	                          const dayIdx = (displayDays as readonly string[]).indexOf(day);
+	                          let tDay: string = day;
+	                          let tHour = hour;
+	                          switch (e.key) {
+	                            case 'ArrowUp':    e.preventDefault(); tHour = Math.max(START_HOUR, hour - 1); break;
+	                            case 'ArrowDown':  e.preventDefault(); tHour = Math.min(END_HOUR, hour + 1); break;
+	                            case 'ArrowLeft':  e.preventDefault(); tDay = displayDays[Math.max(0, dayIdx - 1)] ?? day; break;
+	                            case 'ArrowRight': e.preventDefault(); tDay = displayDays[Math.min(displayDays.length - 1, dayIdx + 1)] ?? day; break;
+	                            default: return;
+	                          }
+	                          (document.querySelector(`[data-slot-day="${tDay}"][data-slot-hour="${tHour}"]`) as HTMLElement | null)?.focus();
+	                        }}
 	                        />
 	                    ))}
 
@@ -148,8 +180,20 @@ export default function WeeklyCalendar({ classes, onRemoveClass, conflicts = {} 
                         return (
                             <div
                             key={`${cls.id}-${day}-${idx}`}
+                            tabIndex={0}
                             onClick={() => setSelectedClass(cls)}
-                            className={`absolute inset-x-1 rounded-lg border shadow-sm p-2 overflow-hidden hover:z-10 hover:shadow-md transition-all group select-none cursor-pointer${conflictMsg ? ' ring-2 ring-red-500/60' : ''}`}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Delete' || e.key === 'Backspace') {
+                                e.stopPropagation();
+                                if (window.confirm(`Remove ${cls.code} from your schedule?`)) {
+                                  onRemoveClass(cls.id);
+                                }
+                              } else if (e.key === 'Enter' || e.key === ' ') {
+                                e.stopPropagation();
+                                setSelectedClass(cls);
+                              }
+                            }}
+                            className={`absolute inset-x-1 rounded-lg border shadow-sm p-2 overflow-hidden hover:z-10 hover:shadow-md transition-all group select-none cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500${conflictMsg ? ' ring-2 ring-red-500/60' : ''}`}
                             style={{
                                 top: `${top}px`,
                                 height: `${height}px`,
